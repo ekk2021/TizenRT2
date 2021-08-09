@@ -415,6 +415,7 @@ int8_t cmd_wifi_ap(trwifi_softap_config_s *softap_config)
 	return ret;
 }
 
+extern unsigned int ap_channel;
 int8_t cmd_wifi_connect(trwifi_ap_config_s *ap_connect_config, void *arg)
 {
 	int ret;
@@ -427,6 +428,7 @@ int8_t cmd_wifi_connect(trwifi_ap_config_s *ap_connect_config, void *arg)
 	int key_id = 0;
 	void *semaphore;
 	int security_retry_count = 0;
+    uint8_t     pscan_config;
 
 	wifi_utils_ap_auth_type_e auth = ap_connect_config->ap_auth_type;
 	wifi_utils_ap_crypto_type_e crypto = ap_connect_config->ap_crypto_type;
@@ -488,6 +490,17 @@ int8_t cmd_wifi_connect(trwifi_ap_config_s *ap_connect_config, void *arg)
 		return -1;
 	}
 
+	// 
+
+    if((ap_channel >= 1) &&(ap_channel <= 13)) {
+        pscan_config = PSCAN_ENABLE | PSCAN_FAST_SURVEY;
+        ret = wifi_set_pscan_chan((uint8_t *)&ap_channel, &pscan_config, 1);
+
+        if (ret < 0) {
+            RTW_API_INFO("\n\rset pscan failed");
+        }
+
+    }
 	ret = wifi_connect(ssid,
 					   security_type,
 					   password,

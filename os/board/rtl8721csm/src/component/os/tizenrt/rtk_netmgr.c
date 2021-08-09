@@ -83,6 +83,21 @@ static wifi_utils_scan_list_s *g_scan_list;
 static int g_scan_num;
 extern struct netdev *ameba_nm_dev_wlan0;
 
+#define MAX_SCAN_LIST 32
+struct ap_scan_list {
+    unsigned int channel;
+    char ssid[WIFI_UTILS_SSID_LEN + 1];
+    unsigned int ssid_length;
+    int rssi;
+    wifi_utils_ap_auth_type_e ap_auth_type;
+    wifi_utils_ap_crypto_type_e ap_crypto_type;
+};
+typedef struct ap_scan_list ap_scan_list_s;
+
+static ap_scan_list_s *saved_scan_list;
+static uint32_t scan_number = 0;
+uint32_t ap_channel;
+
 static void _free_scanlist(void)
 {
 	while (g_scan_list) {
@@ -91,6 +106,40 @@ static void _free_scanlist(void)
 		rtw_mfree(cur, sizeof(wifi_utils_scan_list_s));
 	}
 	g_scan_num = 0;
+}
+int save_scan_list(wifi_utils_scan_list_s *p_scan_list)
+{
+	// If application calls scan before scan result free(before timeout), free scan result at first
+	if(saved_scan_list)
+		rtw_mfree(saved_scan_list, sizeof(ap_scan_list_s)*scan_number);
+	
+	scan_number	 = 0;	
+	saved_scan_list = (ap_scan_list_s *)rtw_zmalloc(sizeof(ap_scan_list_s)*g_scan_num);	
+	if(saved_scan_list == NULL)
+		return RTW_NOMEM;
+
+    
+    while(p_scan_list) {
+        strncpy(saved_scan_list[scan_number].ssid, p_scan_list->ap_info.ssid, p_scan_list->ap_info.ssid_length);
+        saved_scan_list[scan_number].ssid_length = p_scan_list->ap_info.ssid_length;
+		saved_scan_list[scan_number].channel = p_scan_list->ap_info.channel;
+		saved_scan_list[scan_number].rssi = p_scan_list->ap_info.rssi;
+		saved_scan_list[scan_number].ap_auth_type = p_scan_list->ap_info.ap_auth_type;
+		saved_scan_list[scan_number].ap_crypto_type = p_scan_list->ap_info.ap_crypto_type;
+		p_scan_list = p_scan_list->next;
+			scan_number++;
+		}
+
+	printf("Total scan list temp = %d, g_scan = %d\n", scan_number, g_scan_num);
+
+#if 0         
+	for(i = 0 ; i < scan_number ; i++)
+		printf("DRIVER SCAN LIST : ssid = %s, channel = %d, auth = %d, crypto = %d\n",saved_scan_list[i].ssid, saved_scan_list[i].channel, saved_scan_list[i].ap_auth_type, saved_scan_list[i].ap_crypto_type); 
+
+	sort_scan_list(saved_scan_list);	
+#endif
+
+	return RTW_SUCCESS;
 }
 rtw_result_t app_scan_result_handler(rtw_scan_handler_result_t *malloced_scan_result)
 {
@@ -245,6 +294,14 @@ rtw_result_t app_scan_result_handler(rtw_scan_handler_result_t *malloced_scan_re
 		}
 	} else {
 		nvdbg("SCAN DONE: Calling wifi_scan_result_callback\r\n");
+
+		int res;
+		wifi_utils_scan_list_s *p_scan_list = g_scan_list;
+		
+		res = save_scan_list(p_scan_list);
+		if(res != RTW_SUCCESS)
+			ndbg("\r\nFail to malloc scan_list\r\n");
+			
 		TRWIFI_POST_SCANEVENT(ameba_nm_dev_wlan0, LWNL_EVT_SCAN_DONE, (void *)g_scan_list);
 		_free_scanlist();
 		if (g_scan_list) {
@@ -437,6 +494,22 @@ trwifi_result_e wifi_netmgr_utils_connect_ap(struct netdev *dev, trwifi_ap_confi
 		}
 	}
 
+	ap_channel = 0xffff;
+    if(saved_scan_list) {
+		int i;
+        for(i = 0 ; i < scan_number ; i++) {
+            if(strncmp(saved_scan_list[i].ssid, ap_connect_config->ssid, ap_connect_config->ssid_length) == 0) {
+                ap_connect_config->ap_auth_type = saved_scan_list[i].ap_auth_type;
+                ap_connect_config->ap_crypto_type = saved_scan_list[i].ap_crypto_type;
+                ap_channel = saved_scan_list[i].channel;
+                ndbg("[RTK] Scanned AP info : ssid = %s, auth = %d, crypt = %d, channel = %d\n", ap_connect_config->ssid, ap_connect_config->ap_auth_type, ap_connect_config->ap_crypto_type, ap_channel);
+                break;
+            }
+    	}
+		
+       	rtw_mfree(saved_scan_list, sizeof(ap_scan_list_s)*scan_number);
+       	scan_number = 0;
+    }
 	ret = cmd_wifi_connect(ap_connect_config, arg);
 	if (ret != RTK_STATUS_SUCCESS) {
 		ndbg("[RTK] WiFiNetworkJoin failed: %d, %s\n", ret, ap_connect_config->ssid);
