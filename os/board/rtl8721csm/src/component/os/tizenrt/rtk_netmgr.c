@@ -83,7 +83,6 @@ static wifi_utils_scan_list_s *g_scan_list;
 static int g_scan_num;
 extern struct netdev *ameba_nm_dev_wlan0;
 
-#define MAX_SCAN_LIST 32
 struct ap_scan_list {
     unsigned int channel;
     char ssid[WIFI_UTILS_SSID_LEN + 1];
@@ -98,6 +97,38 @@ static ap_scan_list_s *saved_scan_list;
 static uint32_t scan_number = 0;
 uint32_t ap_channel;
 
+#define SCAN_TIMER_DURATION 20000
+#define TMR_NAME_SIZE 16
+typedef void *_timerHandle;
+struct timer_list {
+	struct timer_list *prev, *next;
+	_timerHandle timer_hdl;
+	struct work_s *work_hdl;
+	int timer_id;
+	unsigned char timer_name[TMR_NAME_SIZE];
+	int live;
+	long timevalue;
+	void *data;
+	void (*function)(void *args);
+};
+typedef struct timer_list _timer;
+_timer scan_timer;
+
+static void _scan_timer_handlder (void *FunctionContext)
+{
+	_timer *adapter = (_timer *)FunctionContext;
+
+	ndbg("scan Timer expired : release saved scan list\r\n");
+
+	ndbg("scan Timer expired : sizeof(ap_scan_list_s) =%d, scan_number=%d \r\n", sizeof(ap_scan_list_s), scan_number);
+	
+	rtw_mfree(saved_scan_list, sizeof(ap_scan_list_s) * scan_number);
+	scan_number = 0;	
+   	rtw_del_timer(adapter);
+}
+
+
+
 static void _free_scanlist(void)
 {
 	while (g_scan_list) {
@@ -107,17 +138,26 @@ static void _free_scanlist(void)
 	}
 	g_scan_num = 0;
 }
-int save_scan_list(wifi_utils_scan_list_s *p_scan_list)
+static int save_scan_list(wifi_utils_scan_list_s *p_scan_list)
 {
-	// If application calls scan before scan result free(before timeout), free scan result at first
-	if(saved_scan_list)
-		rtw_mfree(saved_scan_list, sizeof(ap_scan_list_s)*scan_number);
-	
+
+	// If application calls scan before scan result free(before timeout), release scan list and cancel timer
+	if(scan_number) {
+		rtw_mfree(saved_scan_list, sizeof(ap_scan_list_s) * scan_number);
+		rtw_cancel_timer(&(scan_timer));
+		ndbg("scan is called before timeout\r\n");
+	}
+	else {
+		rtw_init_timer(&(scan_timer), &(scan_timer), _scan_timer_handlder, &(scan_timer), "dynamic_chk_timer");;
+		ndbg("Start scan timer\n");	
+	}
+
+	rtw_set_timer(&(scan_timer), SCAN_TIMER_DURATION);
+
 	scan_number	 = 0;	
-	saved_scan_list = (ap_scan_list_s *)rtw_zmalloc(sizeof(ap_scan_list_s)*g_scan_num);	
+	saved_scan_list = (ap_scan_list_s *)rtw_zmalloc(sizeof(ap_scan_list_s) * g_scan_num);	
 	if(saved_scan_list == NULL)
 		return RTW_NOMEM;
-
     
     while(p_scan_list) {
         strncpy(saved_scan_list[scan_number].ssid, p_scan_list->ap_info.ssid, p_scan_list->ap_info.ssid_length);
@@ -130,17 +170,18 @@ int save_scan_list(wifi_utils_scan_list_s *p_scan_list)
 			scan_number++;
 		}
 
-	printf("Total scan list temp = %d, g_scan = %d\n", scan_number, g_scan_num);
+	if(scan_number != g_scan_num)
+		ndbg("Total scan list temp = %d, g_scan = %d\n", scan_number, g_scan_num);
 
 #if 0         
 	for(i = 0 ; i < scan_number ; i++)
 		printf("DRIVER SCAN LIST : ssid = %s, channel = %d, auth = %d, crypto = %d\n",saved_scan_list[i].ssid, saved_scan_list[i].channel, saved_scan_list[i].ap_auth_type, saved_scan_list[i].ap_crypto_type); 
-
-	sort_scan_list(saved_scan_list);	
 #endif
 
 	return RTW_SUCCESS;
 }
+
+
 rtw_result_t app_scan_result_handler(rtw_scan_handler_result_t *malloced_scan_result)
 {
 	wifi_utils_scan_list_s *scan_list;
@@ -309,6 +350,7 @@ rtw_result_t app_scan_result_handler(rtw_scan_handler_result_t *malloced_scan_re
 			return RTW_ERROR;
 		}
 	}
+
 	return RTW_SUCCESS;
 }
 
@@ -431,6 +473,7 @@ trwifi_result_e wifi_netmgr_utils_init(struct netdev *dev)
 	} else {
 		ndbg("Already %d\n", g_mode);
 	}
+
 	return wuret;
 	//return TRWIFI_FAIL;
 }
@@ -495,8 +538,10 @@ trwifi_result_e wifi_netmgr_utils_connect_ap(struct netdev *dev, trwifi_ap_confi
 	}
 
 	ap_channel = 0xffff;
-    if(saved_scan_list) {
+
+    if(scan_number) {
 		int i;
+		rtw_cancel_timer(&(scan_timer));
         for(i = 0 ; i < scan_number ; i++) {
             if(strncmp(saved_scan_list[i].ssid, ap_connect_config->ssid, ap_connect_config->ssid_length) == 0) {
                 ap_connect_config->ap_auth_type = saved_scan_list[i].ap_auth_type;
@@ -506,10 +551,11 @@ trwifi_result_e wifi_netmgr_utils_connect_ap(struct netdev *dev, trwifi_ap_confi
                 break;
             }
     	}
-		
-       	rtw_mfree(saved_scan_list, sizeof(ap_scan_list_s)*scan_number);
-       	scan_number = 0;
+    	// to make sure that timer is running
+    	if(scan_number)
+    		rtw_set_timer(&(scan_timer), SCAN_TIMER_DURATION);
     }
+
 	ret = cmd_wifi_connect(ap_connect_config, arg);
 	if (ret != RTK_STATUS_SUCCESS) {
 		ndbg("[RTK] WiFiNetworkJoin failed: %d, %s\n", ret, ap_connect_config->ssid);
