@@ -1,6 +1,6 @@
 /****************************************************************************
  *
- * Copyright 2019 Samsung Electronics All Rights Reserved.
+ * Copyright 2021 Samsung Electronics All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,25 +15,7 @@
  * language governing permissions and limitations under the License.
  *
  ****************************************************************************/
-#include <stdint.h>
-#include <semaphore.h>
-
-#define SECLINK_PATH "/dev/seclink"
-
-struct sec_lowerhalf_s;
-struct sec_upperhalf_s {
-	struct sec_lowerhalf_s *lower;
-	char *path;
-	int32_t refcnt;
-	sem_t su_lock;
-};
-
-struct sec_ops_s;
-struct sec_lowerhalf_s {
-	struct sec_ops_s *ops;
-	struct sec_upperhalf_s *parent;
-};
-
-int se_register(const char *path, struct sec_lowerhalf_s *lower);
-
-int se_unregister(struct sec_lowerhalf_s *lower);
+// command, type, handler
+SL_SS_TEST_POOL("write", SL_SS_TYPE_WRITE, sl_handle_ss_write)
+SL_SS_TEST_POOL("read", SL_SS_TYPE_READ, sl_handle_ss_read)
+SL_SS_TEST_POOL("delete", SL_SS_TYPE_DELETE, sl_handle_ss_delete)

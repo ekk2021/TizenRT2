@@ -1,6 +1,6 @@
 ###########################################################################
 #
-# Copyright 2020 Samsung Electronics All Rights Reserved.
+# Copyright 2021 Samsung Electronics All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,23 +22,15 @@ include $(APPDIR)/Make.defs
 
 # built-in application info
 
-APPNAME = sl_test
+APPNAME = tls_handshake
+FUNCNAME = $(APPNAME)_main
 THREADEXEC = TASH_EXECMD_ASYNC
+PRIORITY = 100
+STACKSIZE = 10240
 
 ASRCS =
-CSRCS += \
-	sl_auth_test.c \
-	sl_key_test.c \
-	sl_crypto_test.c \
-	sl_ss_test.c \
-	sl_test_utils.c
-
-#CRYPTO
-CSRCS += \
-sl_crypto_aes_test.c\
-sl_crypto_rsa_test.c
-
-MAINSRC = sl_test_main.c
+CSRCS = tls_handshake_server.c tls_handshake_client.c
+MAINSRC = tls_handshake_main.c
 
 AOBJS = $(ASRCS:.S=$(OBJEXT))
 COBJS = $(CSRCS:.c=$(OBJEXT))
@@ -67,8 +59,8 @@ else
   INSTALL_DIR = $(BIN_DIR)
 endif
 
-CONFIG_EXAMPLES_SECLINK_TEST_PROGNAME ?= seclink_test$(EXEEXT)
-PROGNAME = $(CONFIG_EXAMPLES_SECLINK_TEST_PROGNAME)
+CONFIG_EXAMPLES_TLS_HANDSHAKE_PROGNAME ?= tls_handshake$(EXEEXT)
+PROGNAME = $(CONFIG_EXAMPLES_TLS_HANDSHAKE_PROGNAME)
 
 ROOTDEPPATH = --dep-path .
 
@@ -102,13 +94,15 @@ install:
 
 endif
 
-ifeq ($(CONFIG_BUILTIN_APPS)$(CONFIG_EXAMPLES_SECLINK_TEST),yy)
-$(BUILTIN_REGISTRY)$(DELIM)$(APPNAME)_main.bdat: $(DEPCONFIG) Makefile
-	$(call REGISTER,$(APPNAME),$(APPNAME)_main,$(THREADEXEC))
+ifeq ($(CONFIG_BUILTIN_APPS)$(CONFIG_EXAMPLES_TLS_HANDSHAKE),yy)
+$(BUILTIN_REGISTRY)$(DELIM)$(FUNCNAME).bdat: $(DEPCONFIG) Makefile
+	$(call REGISTER,$(APPNAME),$(FUNCNAME),$(THREADEXEC),$(PRIORITY),$(STACKSIZE))
 
-context: $(BUILTIN_REGISTRY)$(DELIM)$(APPNAME)_main.bdat
+context: $(BUILTIN_REGISTRY)$(DELIM)$(FUNCNAME).bdat
+
 else
 context:
+
 endif
 
 .depend: Makefile $(SRCS)

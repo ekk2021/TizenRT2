@@ -164,7 +164,9 @@
  *
  * Comment if your system does not have a correct clock.
  */
+#ifndef CONFIG_TLS_HAVE_NO_TIME_DATE
 #define MBEDTLS_HAVE_TIME_DATE
+#endif
 
 /**
  * \def MBEDTLS_PLATFORM_MEMORY
@@ -2899,7 +2901,7 @@
 #undef MBEDTLS_ARC4_C
 #undef MBEDTLS_BLOWFISH_C
 #undef MBEDTLS_CAMELLIA_C
-#undef MBEDTLS_DEBUG_C
+//#undef MBEDTLS_DEBUG_C
 #undef MBEDTLS_RIPEMD160_C
 //#undef MBEDTLS_SHA512_C
 #undef MBEDTLS_PKCS12_C
