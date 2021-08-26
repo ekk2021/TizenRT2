@@ -56,6 +56,113 @@
 
 #include <tinyara/config.h>
 #include <stdio.h>
+#include <string.h>
+#include <sched.h>
+#include <mqueue.h>
+#include <errno.h>
+#include <stdint.h>
+#include <fcntl.h>
+
+static int g_state = 0;
+static int g_mq = 0;
+
+static int _process_msg1(int argc, char *argv[])
+{
+    uint32_t count = 0;
+    while(g_state) {
+        if (count >= __UINT32_MAX__) count = 0;
+        if (count % 10000000 == 0) {
+            printf("process1 alive\n");
+            fflush(stdout);
+        }
+        count++;
+    }
+    return 0;
+}
+
+static int _process_msg2(int argc, char *argv[])
+{
+    uint32_t count = 0;
+    while(g_state) {
+        if (count >= __UINT32_MAX__) count = 0;
+        if (count % 10003000 == 0) {
+            printf("process2 alive\n");
+            fflush(stdout);
+        }
+        count++;
+    }
+    return 0;
+}
+
+static int _process_msg3(int argc, char *argv[])
+{
+    uint32_t count = 0;
+    while(g_state) {
+        if (count >= __UINT32_MAX__) count = 0;
+        if (count % 10010000 == 0) {
+            printf("process3 alive\n");
+            fflush(stdout);
+        }
+        count++;
+    }
+    return 0;
+}
+
+#define TEST_MQ_SIZE 1
+#define TEST_MQ_NAME "mq_test"
+
+static int _process_mq_send(int argc, char *argv[])
+{
+    printf("Start MQ Send\n");
+    
+    struct mq_attr attr;
+    attr.mq_maxmsg = 10;
+    attr.mq_msgsize = TEST_MQ_SIZE;
+    attr.mq_flags = 0;
+    int status;
+    char buf[TEST_MQ_SIZE] = { 0, };
+    int cnt = 0;
+
+    mqd_t mqfd = mq_open(TEST_MQ_NAME, O_WRONLY | O_CREAT, 0666, &attr);
+    while(g_mq) {
+        buf[0] = (char)cnt;
+        status = mq_send(mqfd, buf, TEST_MQ_SIZE, 0);
+        if (status < 0) {
+            printf("fail to send mqueue[%d]\n", errno);
+            return 0;
+        }
+        printf("--> MQ SEND : %d\n", buf[0]);
+        cnt++;
+        if (cnt > 100) cnt = 0;
+        sleep(1);
+    }
+    mq_close(mqfd);
+    return 0;   
+}
+
+static int _process_mq_receive(int argc, char *argv[])
+{
+    printf("Start MQ Receive\n");
+
+    struct mq_attr attr;
+    attr.mq_maxmsg = 10;
+    attr.mq_msgsize = TEST_MQ_SIZE;
+    attr.mq_flags = 0;
+    int nbytes;
+    char buf[TEST_MQ_SIZE] = { 0, };
+
+    mqd_t mqfd = mq_open(TEST_MQ_NAME, O_RDONLY | O_CREAT, 0666, &attr);
+    while(g_mq) {
+        nbytes = mq_receive(mqfd, buf, sizeof(buf), 0);
+        if (nbytes <= 0) {
+            printf("fail to receive mqueue[%d]\n", errno);
+        } else {
+            printf("<-- MQ RECV : %d\n", buf[0]);
+        }
+    }
+    mq_close(mqfd);
+    return 0;   
+}
 
 /****************************************************************************
  * hello_main
@@ -67,6 +174,40 @@ int main(int argc, FAR char *argv[])
 int hello_main(int argc, char *argv[])
 #endif
 {
-	printf("Hello, World!!\n");
-	return 0;
+    printf("Hello, World!!\n");
+
+    if (argc <= 1) return 0;
+
+    if (strncmp(argv[1], "stress", 7) == 0 && argv[2][0] == '0') {
+        g_state = 0;
+    } else if (strncmp(argv[1], "stress", 7) == 0 && argv[2][0] == '1') {
+
+        if (g_state == 1) return 0;
+
+        g_state = 1;
+
+        int tid;
+        tid = task_create("test_stress_handle1", 100, 1024, (main_t)_process_msg1, NULL);
+        printf("process1 generated[%d]\n", tid);
+        tid = task_create("test_stress_handle2", 100, 1024, (main_t)_process_msg2, NULL);
+        printf("process2 generated[%d]\n", tid);
+        tid = task_create("test_stress_handle3", 100, 1024, (main_t)_process_msg3, NULL);
+        printf("process3 generated[%d]\n", tid);
+
+    } else if (strncmp(argv[1], "mq", 3) == 0 && argv[2][0] == '0') {
+        g_mq = 0;
+    } else if (strncmp(argv[1], "mq", 3) == 0 && argv[2][0] == '1') {
+        if (g_mq == 1) return 0;
+
+        g_mq = 1;
+
+        int tid;
+        tid = task_create("test_mq_handle1", 100, 1024, (main_t)_process_mq_send, NULL);
+        printf("process1 generated[%d]\n", tid);
+        
+        tid = task_create("test_mq_handle2", 99, 1024, (main_t)_process_mq_receive, NULL);
+        printf("process2 generated[%d]\n", tid);        
+    }
+
+    return 0;
 }
