@@ -80,7 +80,8 @@ T_HCI_UART *hci_uart_obj;
       #define HCI_UART_IRQ  UART1_IRQ
 #endif
 
-#define HCIUART_IRQ_PRIO    10
+// #define HCIUART_IRQ_PRIO    10
+#define HCIUART_IRQ_PRIO    6
 
 
 /* ========================================HCI UART BRIDGE================= */
@@ -254,6 +255,29 @@ static inline void receive_chars(T_HCI_UART *hci_adapter, int ind)
     }
 }
 
+void hci_uart_reinit()
+{
+    printf("hci_uart_reinit \n");
+
+    int ret;
+    printf("hci_uart_obj->ier = 0x%x \n", hci_uart_obj->ier);
+    ret = NVIC_GetEnableIRQ(HCI_UART_IRQ);
+    printf("NVIC_GetEnableIRQ(HCI_UART_IRQ) = %d \n", ret);
+    ret = NVIC_GetPriority(HCI_UART_IRQ);
+    printf("NVIC_GetPriority(HCI_UART_IRQ) = %d \n", ret);
+    ret = NVIC_GetPriority(UART_LOG_IRQ);
+    printf("NVIC_GetPriority(UART_LOG_IRQ) = %d \n", ret);
+
+    ret = __get_BASEPRI();
+    printf("__get_BASEPRI = 0x%x \n", ret);
+    ret &= 0x1F;
+    printf("__get_BASEPRI9(after) = 0x%x \n", ret);
+    __set_BASEPRI(ret);
+
+    ret = __get_BASEPRI();
+     printf("__get_BASEPRI(Resetting) = 0x%x \n", ret); 
+}
+
 u32 hciuart_irq(void *data)
 {
     volatile u8 reg_iir;
@@ -413,6 +437,10 @@ bool hci_uart_init(P_UART_RX_CB rx_ind)
 #endif
     UART_InitTypeDef    *pUARTStruct;
     pUARTStruct = &hci_uart_obj->UART_InitStruct;
+
+    int ret;
+    ret = __get_BASEPRI();
+    printf("__get_BASEPRI = 0x%x \n", ret);
 
     UART_StructInit(pUARTStruct);
     pUARTStruct->WordLen = RUART_WLS_8BITS;
