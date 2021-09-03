@@ -178,6 +178,10 @@ int hello_main(int argc, char *argv[])
 
     if (argc <= 1) return 0;
 
+    if(strncmp(argv[1], "basepri", 8) == 0) {
+        printf("BASEPRI_hello = %d", getbasepri());
+    }
+
     if (strncmp(argv[1], "stress", 7) == 0 && argv[2][0] == '0') {
         g_state = 0;
     } else if (strncmp(argv[1], "stress", 7) == 0 && argv[2][0] == '1') {

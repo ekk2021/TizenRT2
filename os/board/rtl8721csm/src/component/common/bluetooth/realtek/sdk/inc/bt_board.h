@@ -39,14 +39,12 @@ extern "C" {
 
 #ifdef TRACE_UART_TX_IRQ
 #define TRACE_COUNT             16   /* ONE IRQ send DATA LEN */
-// #define TRACEUART_IRQ_PRIO      12
-#define TRACEUART_IRQ_PRIO      6
+#define TRACEUART_IRQ_PRIO      12
 #endif
 
 /* ======== hci_uart ======== */
 /* ======== trace_task ======== */
 #define TRACE_TASK_PRIO  3
-// #define TRACE_TASK_PRIO  105
 
 /* ======== hci_rtk ======== */
 #define hci_board_debug DBG_8195A
