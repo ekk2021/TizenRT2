@@ -120,7 +120,8 @@ void scan_stop_cb(void *arg)
 
 trble_result_e rtw_ble_client_start_scan_with_filter(trble_scan_filter* scan_parm)
 { 
-    if (client_init_parm == NULL || client_init_parm->trble_device_scanned_cb == NULL || scan_parm == NULL || scan_parm->raw_data_length == 0)
+    // if (client_init_parm == NULL || client_init_parm->trble_device_scanned_cb == NULL || scan_parm == NULL || scan_parm->raw_data_length == 0)
+    if (client_init_parm == NULL || client_init_parm->trble_device_scanned_cb == NULL || scan_parm == NULL )
     {
         return TRBLE_FAIL;
     }
@@ -132,14 +133,35 @@ trble_result_e rtw_ble_client_start_scan_with_filter(trble_scan_filter* scan_par
 		return TRBLE_INVALID_STATE;
 	}
 
-    if(!le_scan_info_filter(true, 0, scan_parm->raw_data_length, scan_parm->raw_data))
-    {
-        printf("\r\n[%s] set scan info fail !!", __FUNCTION__);
-        return TRBLE_FAIL;
-    } else {
-        debug_print("\r\n[%s] set scan info success", __FUNCTION__);
+    printf("\r\n [%s][%d] raw_data_length = %d \n", __FUNCTION__, __LINE__, scan_parm->raw_data_length);
+
+    if(scan_parm->raw_data_length == 0) {
+        for(int i = 0 ; i < TRBLE_BD_ADDR_MAX_LEN ; i++) {
+            printf("MAC address for scan mac[%d]  = 0x%02x\n", i, scan_parm->mac[i]);
+        }
+
+        if(!le_scan_info_filter(true, 0, TRBLE_BD_ADDR_MAX_LEN, scan_parm->mac))
+        {
+            printf("\r\n[%s][%d] set scan info  with mac fail !!", __FUNCTION__, __LINE__);
+            return TRBLE_FAIL;
+        } else {
+            debug_print("\r\n[%s][%d] set scan info with mac success", __FUNCTION__, __LINE__);
+        }
     }
-    
+    else {
+        for(int i = 0 ; i < scan_parm->raw_data_length  ; i++) {
+            printf("MAC address for scan filter[%d]  = 0x%02x\n", i, scan_parm->raw_data[i]);
+        }
+
+       if(!le_scan_info_filter(true, 0, scan_parm->raw_data_length, scan_parm->raw_data))
+        {
+            printf("\r\n[%s] set scan info fail !!", __FUNCTION__);
+            return TRBLE_FAIL;
+        } else {
+            debug_print("\r\n[%s] set scan info success", __FUNCTION__);
+        }
+    }
+
     if(ble_tizenrt_client_send_msg(BLE_TIZENRT_START_SCAN, NULL) == false)
     {
         debug_print("\r\n[%s] msg send fail", __FUNCTION__);

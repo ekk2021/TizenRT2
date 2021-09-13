@@ -462,7 +462,24 @@ int ble_rmc_main(int argc, char *argv[])
 			ble_scan_filter filter = { 0, };
 			memcpy(&(filter.raw_data), ble_filter, sizeof(ble_filter));
 			filter.raw_data_length = sizeof(ble_filter);
-			filter.scan_duration = 1000;
+			filter.scan_duration = 0;
+
+			ret = ble_client_start_scan(&filter, &scan_config);
+
+			if (ret != BLE_MANAGER_SUCCESS) {
+				RMC_LOG(RMC_CLIENT_TAG, "scan start fail[%d]\n", ret);
+				return 0;
+			}
+		} else if (argc == 3 && argv[2][0] == '3') {
+			printf("Start with mac address!\n");
+
+			ble_scan_filter filter = { 0, };
+			memcpy(&(filter.raw_data), ble_filter, sizeof(ble_filter));
+			filter.raw_data_length = 0;
+			filter.scan_duration = 0;
+
+			uint8_t scan_filter_mac[BLE_BD_ADDR_MAX_LEN] = {0x28, 0x6d, 0x97, 0xaa, 0x6d, 0x7b};
+			memcpy(filter.mac, scan_filter_mac, BLE_BD_ADDR_MAX_LEN);
 			ret = ble_client_start_scan(&filter, &scan_config);
 
 			if (ret != BLE_MANAGER_SUCCESS) {
