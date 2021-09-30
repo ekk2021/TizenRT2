@@ -128,8 +128,11 @@ static ssize_t amebad_erase_page(size_t page)
 
 	/* do erase */
 	address = page * CONFIG_AMEBAD_FLASH_BLOCK_SIZE;
+	dbg("erase sector start address : %u\n", address);
 	flash_erase_sector(NULL, address);
+	dbg("erase end, verify start\n");
 	ret = flash_erase_verify(address);
+	dbg("verify end\n");
 	/* Restore IRQs */
 	irqrestore(irqs);
 	if (ret != OK) {
