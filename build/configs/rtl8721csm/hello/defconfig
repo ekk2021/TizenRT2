@@ -976,7 +976,8 @@ CONFIG_DEBUG_WARN=y
 #
 # Subsystem Debug Options
 #
-# CONFIG_DEBUG_FS is not set
+CONFIG_DEBUG_FS=y
+CONFIG_DEBUG_FS_ERROR=y
 # CONFIG_DEBUG_LIB is not set
 # CONFIG_DEBUG_MM is not set
 CONFIG_DEBUG_NET=y

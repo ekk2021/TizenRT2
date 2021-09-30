@@ -119,11 +119,11 @@ def make_bootparam():
         print "FAIL!! No found kernel partition"
         sys.exit(1)
 
-    user_file_list = os.listdir(user_file_dir)
-    user_app_count = len(user_file_list)
-    SIZE_OF_BINNAME = 16
-    SIZE_OF_BINIDX = 1
-    app_bootparam_size = (user_app_count * (SIZE_OF_BINNAME + SIZE_OF_BINIDX)) + 1
+    # user_file_list = os.listdir(user_file_dir)
+    # user_app_count = len(user_file_list)
+    # SIZE_OF_BINNAME = 16
+    # SIZE_OF_BINIDX = 1
+    # app_bootparam_size = (user_app_count * (SIZE_OF_BINNAME + SIZE_OF_BINIDX)) + 1
 
     with open(bootparam_file_path, 'wb') as fp:
         # Write Data
@@ -140,17 +140,18 @@ def make_bootparam():
     mkchecksum_path = os.path.dirname(__file__) + '/mkchecksum.py'
     os.system('python %s %s' % (mkchecksum_path, bootparam_file_path))
 
-    with open(bootparam_file_path, 'a') as fp:
-        # User Data
-        user_active_idx = 0
-        fp.write(struct.pack('B', user_app_count))
-        for user_file in user_file_list:
-            fp.write('{:{}{}.{}}'.format(user_file, '<', SIZE_OF_BINNAME, SIZE_OF_BINNAME - 1).replace(' ','\0'))
-            fp.write(struct.pack('B', user_active_idx))
+    # with open(bootparam_file_path, 'a') as fp:
+    #     # User Data
+    #     user_active_idx = 0
+    #     fp.write(struct.pack('B', user_app_count))
+    #     for user_file in user_file_list:
+    #         fp.write('{:{}{}.{}}'.format(user_file, '<', SIZE_OF_BINNAME, SIZE_OF_BINNAME - 1).replace(' ','\0'))
+    #         fp.write(struct.pack('B', user_active_idx))
 
     # Fill remaining space with '0xff'
     with open(bootparam_file_path, 'a') as fp:
-        remain_size = partition_size - bootparam_size - app_bootparam_size
+        # remain_size = partition_size - bootparam_size - app_bootparam_size
+        remain_size = partition_size - bootparam_size 
         fp.write(b'\xff' * remain_size)
 
 ###################################################
