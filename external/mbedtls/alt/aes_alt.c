@@ -104,7 +104,7 @@ int mbedtls_aes_setkey_enc(mbedtls_aes_context *ctx, const unsigned char *key,
 	aeskey.data = (void *)key;
 	aeskey.data_len = keybits >> 3;
 
-	int key_idx = alt_set_key(ctx->shnd, key_type, aeskey, NULL, 32);
+	int key_idx = alt_set_key(ctx->shnd, key_type, &aeskey, NULL, 32);
 	if (key_idx == -1) {
 		return MBEDTLS_ERR_AES_HW_ACCEL_FAILED;
 	}
@@ -129,7 +129,7 @@ int mbedtls_aes_setkey_dec(mbedtls_aes_context *ctx, const unsigned char *key,
 	aeskey.data = (void *)key;
 	aeskey.data_len = keybits >> 3;
 
-	int key_idx = alt_set_key(ctx->shnd, key_type, aeskey, NULL, 32);
+	int key_idx = alt_set_key(ctx->shnd, key_type, &aeskey, NULL, 32);
 	if (key_idx == -1) {
 		return MBEDTLS_ERR_AES_HW_ACCEL_FAILED;
 	}
