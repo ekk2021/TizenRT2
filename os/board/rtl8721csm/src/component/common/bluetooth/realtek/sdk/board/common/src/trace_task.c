@@ -117,6 +117,7 @@ static void trace_task(void *pParameters)
 
 bool bt_trace_init(void)
 {
+#if 0     
     trace_uart_init();
 
     if ((trace.handle != NULL) && (trace.QueueHandleEvent != NULL))
@@ -128,11 +129,14 @@ bool bt_trace_init(void)
     os_msg_queue_create(&trace.QueueHandleEvent, TRACE_QUEUE_LENGTH_EVENT, sizeof(uint8_t));
     os_task_create(&trace.handle, "trace_task", trace_task, NULL, 0x200, TRACE_TASK_PRIO);   /*need up priority */
 
+#endif
+
     return true;
 }
 
 bool bt_trace_uninit(void)
 {
+#if 0    
     uint8_t event = TRACE_EVENT_DEINIT;
     flag_trace_deinit = 1;
     os_msg_send(trace.QueueHandleEvent, &event, 0xFFFFFFFF);
@@ -140,11 +144,14 @@ bool bt_trace_uninit(void)
         os_delay(10);
     }
     flag_trace_deinit = 0;
+#endif
+
     return true;
 }
 
 bool trace_print(void *pData, uint16_t Length)
 {
+#if 0    
     if (trace.handle == NULL)
     {
         dbg("trace task is deleted, not work\r\n");
@@ -167,4 +174,7 @@ bool trace_print(void *pData, uint16_t Length)
     {
         return false;
     }
+#else
+    return true;
+#endif    
 }
