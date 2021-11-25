@@ -674,30 +674,43 @@ static void rtl8721d_up_txint(struct uart_dev_s *dev, bool enable)
  *   Return true if the tranmsit fifo is not full
  *
  ****************************************************************************/
-
+volatile uint32_t txreadycnt_0 = 0;
+volatile uint32_t txreadycnt_2 = 0;
+volatile uint32_t txreadycnt_3 = 0;
 static bool rtl8721d_up_txready(struct uart_dev_s *dev)
 {
 	struct rtl8721d_up_dev_s *priv = (struct rtl8721d_up_dev_s *)dev->priv;
 	DEBUGASSERT(priv);
 
+	txreadycnt_0 = 0;
+	txreadycnt_2 = 0;
+	txreadycnt_3 = 0;
+#if 1
 #if defined(CONFIG_UART0_SERIAL_CONSOLE)
 	if (uart_index_get(priv->tx) == 0){
-		while (!serial_writable(sdrv[uart_index_get(priv->tx)]));
+		while (!serial_writable(sdrv[uart_index_get(priv->tx)])){
+			txreadycnt_0++;
+		} 
 		return true;
 	}
 	else
 #elif defined(CONFIG_UART1_SERIAL_CONSOLE)
 	if (uart_index_get(priv->tx) == 3){
-		while (!serial_writable(sdrv[uart_index_get(priv->tx)]));
+		while (!serial_writable(sdrv[uart_index_get(priv->tx)])) {
+			txreadycnt_3++;
+		}
 		return true;
 	}
 	else
 #elif defined(CONFIG_UART2_SERIAL_CONSOLE)
 	if (uart_index_get(priv->tx) == 2){
-		while (!serial_writable(sdrv[uart_index_get(priv->tx)]));
+		while (!serial_writable(sdrv[uart_index_get(priv->tx)])) {
+			txreadycnt_2++;
+		}
 		return true;
 	}
 	else
+#endif
 #endif
 	{
 		return (serial_writable(sdrv[uart_index_get(priv->tx)]));

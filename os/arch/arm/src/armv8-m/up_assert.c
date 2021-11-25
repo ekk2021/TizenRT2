@@ -292,6 +292,18 @@ static int assert_tracecallback(FAR struct usbtrace_s *trace, FAR void *arg)
  * Name: up_dumpstate
  ****************************************************************************/
 
+extern volatile uint32_t irqin[8];
+extern volatile uint32_t irqout[8];
+extern volatile uint32_t irqcnt;
+extern volatile uint32_t irqenter;
+extern volatile uint32_t irqexit;
+extern volatile uint32_t irqin_sp[8];
+extern volatile uint32_t irqout_sp[8];
+extern volatile uint32_t txreadycnt_0;
+extern volatile uint32_t txreadycnt_2;
+extern volatile uint32_t txreadycnt_3;
+
+
 #ifdef CONFIG_ARCH_STACKDUMP
 static void up_dumpstate(void)
 {
@@ -381,6 +393,15 @@ static void up_dumpstate(void)
 	}
 
 #endif
+
+	lldbg("irqcnt = %d, irqenter = %d, irqexit = %d\n ", irqcnt, irqenter, irqexit);
+	lldbg("irqin = %d %d %d %d %d %d %d %d\n ", irqin[0], irqin[1], irqin[2], irqin[3], irqin[4], irqin[5], irqin[6], irqin[7]);
+	lldbg("irqout = %d %d %d %d %d %d %d %d\n\n ", irqout[0], irqout[1], irqout[2], irqout[3], irqout[4], irqout[5], irqout[6], irqout[7]);
+
+	lldbg("irqin_sp = %x %x %x %x %x %x %x %x\n ", irqin_sp[0], irqin_sp[1], irqin_sp[2], irqin_sp[3], irqin_sp[4], irqin_sp[5], irqin_sp[6], irqin_sp[7]);
+	lldbg("irqout_sp = %x %x %x %x %x %x %x %x\n\n ", irqout_sp[0], irqout_sp[1], irqout_sp[2], irqout_sp[3], irqout_sp[4], irqout_sp[5], irqout_sp[6], irqout_sp[7]);
+
+	lldbg("txreadycnt_0 = %d, txreadycnt_2 = %d, txreadycnt_3 = %d\n\n", txreadycnt_0, txreadycnt_2, txreadycnt_3);
 
 	/* Then dump the registers (if available) */
 

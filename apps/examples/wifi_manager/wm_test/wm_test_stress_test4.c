@@ -214,6 +214,8 @@ static int _run_procedure(void)
 		WT_LOGE(TAG, "fail to scan %d\n", wres);
 		return -1;
 	}
+
+	printf("[%s : %d] pid = %x, stack pointer  = %x \n",__func__, __LINE__, getpid(),up_getsp());	
 	wres = wifi_manager_get_info(&wminfo);
 	if (wres != WIFI_MANAGER_SUCCESS) {
 		WT_LOGE(TAG, "get info fail %d\n", wres);

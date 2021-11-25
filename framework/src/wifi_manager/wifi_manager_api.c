@@ -218,7 +218,9 @@ wifi_manager_result_e wifi_manager_scan_specific_ap(wifi_manager_ap_config_s *co
  */
 wifi_manager_result_e wifi_manager_get_info(wifi_manager_info_s *info)
 {
+	printf("[%s : %d] pid = %x, stack pointer  = %x \n",__func__, __LINE__, getpid(),up_getsp());	
 	NET_LOGI(TAG, "-->\n");
+	printf("[%s : %d] pid = %x, stack pointer  = %x \n",__func__, __LINE__, getpid(),up_getsp());	
 	if (info == NULL) {
 		WIFIADD_ERR_RECORD(ERR_WIFIMGR_INVALID_ARGUMENTS);
 		return WIFI_MANAGER_INVALID_ARGS;

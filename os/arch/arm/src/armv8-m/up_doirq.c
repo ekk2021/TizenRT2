@@ -87,6 +87,14 @@ extern uint32_t g_nestlevel; /* Initial top of interrupt stack */
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+volatile uint32_t irqin[8] = {0, };
+volatile uint32_t irqout[8] = {0, };
+volatile uint32_t irqcnt = 0;
+volatile uint32_t irqenter = 0;
+volatile uint32_t irqexit = 0;
+volatile uint32_t irqin_sp[8] = {0, };
+volatile uint32_t irqout_sp[8] = {0, };
+
 
 uint32_t *up_doirq(int irq, uint32_t *regs)
 {
@@ -137,7 +145,16 @@ uint32_t *up_doirq(int irq, uint32_t *regs)
 
 	/* Deliver the IRQ */
 
+	irqin[irqcnt] = irq;
+	irqin_sp[irqcnt] = up_getsp();
+	irqenter++;
 	irq_dispatch(irq, regs);
+	irqexit++;
+	irqout[irqcnt] = irq;
+	irqout_sp[irqcnt] = up_getsp();
+	irqcnt++;
+	if(irqcnt>7)
+		irqcnt=0;
 
 #ifdef CONFIG_ARCH_NESTED_INTERRUPT
 	/* Context switches are indicated by the returned value of this function.
