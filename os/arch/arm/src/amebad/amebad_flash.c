@@ -70,6 +70,7 @@
 #include "chip.h"
 #include "flash_api.h"
 
+#include "device_lock.h"
 /****************************************************************************
  * Pre-processor Definitions
  ************************************************************************************/
@@ -124,14 +125,19 @@ static ssize_t amebad_erase_page(size_t page)
 	}
 
 	/* Disable IRQs while erasing sector */
-	irqs = irqsave();
+	//irqs = irqsave();
+	device_mutex_lock(RT_DEV_LOCK_FLASH);
+	FLASH_Write_Lock();
 
 	/* do erase */
 	address = page * CONFIG_AMEBAD_FLASH_BLOCK_SIZE;
 	flash_erase_sector(NULL, address);
 	ret = flash_erase_verify(address);
 	/* Restore IRQs */
-	irqrestore(irqs);
+	// irqrestore(irqs);
+	FLASH_Write_Unlock();
+	device_mutex_unlock(RT_DEV_LOCK_FLASH);
+
 	if (ret != OK) {
 		ret = -EIO;
 	}
@@ -164,16 +170,21 @@ static ssize_t amebad_flash_write(size_t addr, const void *buf, size_t length)
 		return -EINVAL;
 	}
 
-	if (addr > CONFIG_AMEBAD_FLASH_BASE + CONFIG_AMEBAD_FLASH_CAPACITY) {
+	if (addr > CONFIG_AMEBAD_FLASH_BASE + CONFIG_AMEBAD_FLASH_CAPACITY) {		
+		printf("flash write addr = 0x%x, addr limit = 0x%x\n", addr, CONFIG_AMEBAD_FLASH_BASE + CONFIG_AMEBAD_FLASH_CAPACITY);
 		return -EFAULT;
 	}
 
 	/* Disable IRQs while erasing sector */
-	irqs = irqsave();
+	//irqs = irqsave();
+	device_mutex_lock(RT_DEV_LOCK_FLASH);
 	result = flash_stream_write(NULL, addr, length, (u8 *)buf);
 
 	/* Restore IRQs */
-	irqrestore(irqs);
+	//irqrestore(irqs);
+	device_mutex_unlock(RT_DEV_LOCK_FLASH);
+
+	// printf("flash write result = %d\n", result);
 
 	if (result < 0) {
 		return -EIO;
@@ -197,7 +208,8 @@ ssize_t amebad_flash_read(size_t addr, void *buf, size_t length)
 	}
 
 	/* Disable IRQs while erasing sector */
-	irqs = irqsave();
+	// irqs = irqsave();
+	device_mutex_lock(RT_DEV_LOCK_FLASH);
 	if ((addr & 0x3) == 0) {
 		//! if addr is 4 bytes aligned
 		result = flash_stream_read(NULL, addr, length, buf);
@@ -227,7 +239,8 @@ ssize_t amebad_flash_read(size_t addr, void *buf, size_t length)
 	}
 
 	/* Restore IRQs */
-	irqrestore(irqs);
+	// irqrestore(irqs);
+	device_mutex_unlock(RT_DEV_LOCK_FLASH);
 	return ret;
 }
 

@@ -60,6 +60,148 @@
 /****************************************************************************
  * hello_main
  ****************************************************************************/
+#include <tinyara/fs/mtd.h>
+#include <errno.h>
+
+#include <termios.h>
+#include <fcntl.h>
+
+#define FLASH_ADDRESS       0x402000
+#define FLASH_BLOCK_SIZE    4096
+// #define FLASH_BLOCK_SIZE    256
+#define FLASH_SIZE    (1024 * 1024)
+
+
+extern int line_status_counter;
+static int _process_flash_write_thread() 
+{
+    FAR struct mtd_dev_s *mtd_dev = NULL;
+    unsigned long address = FLASH_ADDRESS;
+    char buffer[FLASH_BLOCK_SIZE];
+    int ret = 0;
+
+    memset(buffer, 1, sizeof(buffer));
+    printf("_process_flash_write thread\n");
+    mtd_dev = up_flashinitialize();
+
+    if(!mtd_dev) {
+        printf("up_flashinitialize is failed \n");
+        return -1;
+
+    }
+
+    printf("start the flash write \n");
+    while(true) {
+        address = FLASH_ADDRESS;
+
+        while(address < FLASH_ADDRESS + FLASH_SIZE) {
+            // ret = MTD_ERASE(mtd_dev, address / FLASH_BLOCK_SIZE, 1);
+            // if(ret < 0) {
+            //     printf("erase fail ret : %d\n", ret);
+            // }
+        
+            ret = MTD_WRITE(mtd_dev, address, FLASH_BLOCK_SIZE, buffer);
+            if(ret < 0) {
+                printf("flash writr fail ret[0x%x] : %d\n", address, ret);                
+            }
+
+
+            address += FLASH_BLOCK_SIZE;
+        }
+        printf("flash block write (1M) finished line_status_counter = %d\n", line_status_counter);
+        // sleep(1);
+    }
+
+}
+
+#if 1
+void _process_flash_write() 
+{
+    pthread_t flash_thread, http_thread;
+    pthread_attr_t attr;
+    struct sched_param sparam;
+    pthread_attr_init(&attr);
+
+    pthread_attr_setstacksize(&attr, 1024*50);
+    sparam.sched_priority = 100;
+    pthread_attr_setschedparam(&attr, &sparam);
+
+    if(pthread_create(&flash_thread, &attr, _process_flash_write_thread, 0) == 0) {
+        pthread_setname_np(flash_thread, "flash thread");
+        pthread_detach(flash_thread);
+    } else {
+        printf("fail to create flash write flash_thread\n");
+        return;
+    }
+}
+#endif
+
+#define _T_MAX_DATA_SIZE    2048
+void _process_uart2() 
+{
+    struct termios tio;
+    int fd = 0;
+    int ret = 1;
+    unsigned char *pBuf = NULL;
+
+    pBuf = (unsigned char *)malloc(_T_MAX_DATA_SIZE + 1);
+    if(pBuf == NULL) {
+        printf("pBuf malloc failed ... \n");
+        return;
+    }
+
+    fd = open("/dev/ttyS2", O_RDWR | O_NOCTTY);
+    if(fd < 0) {
+        printf("tty open failed ... = %d \n", fd);
+        return;
+    }
+
+    ret = tcgetattr(fd, &tio);
+    if(ret < 0) {
+        printf("tcgetattr adiled = %d\n", fd);
+        return;
+    }
+
+    tio.c_speed = B9600;
+    tio.c_cflag &= ~CSIZE;
+    tio.c_cflag |= CS8;
+    tio.c_cflag &= ~PARENB;
+    tio.c_cflag &= ~PARODD;
+    tio.c_cflag |= CSTOPB;
+
+    ret = tcsetattr(fd, TCSANOW, &tio);
+    if(ret < 0) {
+        printf("tesetattr failed = %d\n", fd);
+        return;
+    }
+    printf("[%s : %d] : start read from uart ... \n", __FUNCTION__, __LINE__);
+
+
+    while(1) {
+        memset(pBuf, 0, _T_MAX_DATA_SIZE);
+
+        ret = read(fd, pBuf, _T_MAX_DATA_SIZE);
+        printf("read lenth = %d, line_status_counter = %d\n", ret, line_status_counter);
+
+        if(ret <= 0) {
+            break;
+        }
+#if 1
+        ret = write(fd, pBuf, ret);
+        printf("write lenth = %d\n", ret);
+        if(ret <= 0) {
+            break;
+        }
+#endif
+        if(pBuf != NULL) {
+            free(pBuf);
+        }
+    }
+
+    if(pBuf != NULL) {
+        free(NULL);
+    }
+}
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
@@ -68,5 +210,20 @@ int hello_main(int argc, char *argv[])
 #endif
 {
 	printf("Hello, World!!\n");
+
+    int ret;
+
+#if 1
+    ret = task_create("flash_write_task", 100, 1024, (main_t)_process_flash_write, NULL);
+    if(ret < 0) {
+        printf("flash thread creation failed\n");
+    }
+#endif
+
+    ret = task_create("uart2_test", 100, 1024, (main_t)_process_uart2, NULL);
+    if(ret < 0) {
+        printf("uart2 task creation failed\n");
+    }
+
 	return 0;
 }

@@ -244,7 +244,6 @@ void uart_recvchars(FAR uart_dev_t *dev)
 	/* If any bytes were added to the buffer, inform any waiters there there is new
 	 * incoming data available.
 	 */
-
 	if (nbytes) {
 		dev->received(dev);
 	}

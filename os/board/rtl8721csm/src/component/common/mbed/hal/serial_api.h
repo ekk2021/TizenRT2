@@ -188,6 +188,15 @@ int  serial_readable(serial_t *obj);
 int  serial_writable(serial_t *obj);
 
 /**
+  * @brief  check if transmit fifo is empty
+  * @param  obj: uart object define in application software.
+  * @retval status value:
+  *          - 1: TRUE
+  *          - 0: FALSE
+  */
+int serial_tx_empty(serial_t *obj);
+
+/**
   * @brief  Clear Rx fifo.
   * @param  obj: uart object define in application software.
   * @retval none
@@ -241,3 +250,4 @@ void serial_rts_control(serial_t *obj, BOOLEAN rts_state);
 #endif
 
 #endif
+
