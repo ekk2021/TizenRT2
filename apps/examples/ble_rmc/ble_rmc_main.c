@@ -252,7 +252,7 @@ static int ble_connect_common(ble_client_ctx *ctx, ble_addr *addr, bool is_auto)
 	conn_info.slave_latency = 128;
 	conn_info.mtu = 240;
 	conn_info.scan_timeout = 1000;
-	conn_info.is_secured_connect = true;
+	conn_info.is_secured_connect = false;
 
 	if (ctx == NULL) {
 		RMC_LOG(RMC_CLIENT_TAG, "ctx fail\n");

@@ -68,5 +68,14 @@ int hello_main(int argc, char *argv[])
 #endif
 {
 	printf("Hello, World!!\n");
+
+	if (argc > 1) {
+		printf("Hello, World Work!!\n");
+		volatile unsigned long count = 500000000;
+		while(count) {
+			count--;
+		}
+		printf("Hello, World Done!!\n");
+	}
 	return 0;
 }

@@ -71,6 +71,7 @@ void ble_tizenrt_scatternet_handle_callback_msg(T_TIZENRT_APP_CALLBACK_MSG callb
             trble_device_connected *bonded_dev = callback_msg.u.buf;
             if(bonded_dev)
             {
+                printf("-- [DAE] 01-2) SECURE : SM CONNECTED --\n");
                 debug_print("SM connected %d \n", bonded_dev->conn_handle);
                 client_init_parm->trble_device_connected_cb(bonded_dev);
                 os_mem_free(bonded_dev);
@@ -102,6 +103,7 @@ void ble_tizenrt_scatternet_handle_callback_msg(T_TIZENRT_APP_CALLBACK_MSG callb
                         {
                             debug_print("\r\n[%s] Memory allocation failed", __FUNCTION__);
                         } else {
+                            printf("-- [DAE] 01-1) SECURE : LL CONNECTED --\n");
                             *conn_id = (trble_conn_handle) connected_dev->conn_handle;
                             debug_print("\r\n[%s] LL connected %d, need pairing", __FUNCTION__, connected_dev->conn_handle);
                             if(ble_tizenrt_scatternet_send_msg(BLE_TIZENRT_BOND, conn_id) == false)
@@ -113,6 +115,7 @@ void ble_tizenrt_scatternet_handle_callback_msg(T_TIZENRT_APP_CALLBACK_MSG callb
                         if(ble_client_connect_is_running)
                             ble_client_connect_is_running = 0;
                     } else {
+                        printf("-- [DAE] 02-1) NON-SECURE : LL CONNECTED --\n");
                         debug_print("LL connected %d, do not need pairing \n", connected_dev->conn_handle);
                         if(ble_client_connect_is_running)
                             ble_client_connect_is_running = 0;
@@ -817,6 +820,9 @@ void ble_tizenrt_scatternet_app_handle_authen_state_evt(uint8_t conn_id, uint8_t
                         le_get_conn_param(GAP_PARAM_CONN_INTERVAL, &connected_dev->conn_info.conn_interval, conn_id);
                         le_get_conn_param(GAP_PARAM_CONN_LATENCY, &connected_dev->conn_info.slave_latency, conn_id);
                         le_get_conn_param(GAP_PARAM_CONN_MTU_SIZE, &connected_dev->conn_info.mtu, conn_id);
+                        printf("-- [DAE] 11-1 : %d --\n", connected_dev->conn_info.conn_interval);
+                        printf("-- [DAE] 11-2 : %d --\n", connected_dev->conn_info.slave_latency);
+                        printf("-- [DAE] 11-3 : %d --\n", connected_dev->conn_info.mtu);
                         connected_dev->is_bonded = true;
                         connected_dev->conn_handle = conn_id;
                         if(ble_tizenrt_scatternet_send_callback_msg(BLE_TIZENRT_BONDED_MSG, connected_dev) == false)
