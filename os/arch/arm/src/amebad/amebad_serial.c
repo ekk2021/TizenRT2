@@ -162,6 +162,7 @@
 #define UART2_ASSIGNED  1
 #endif
 #define CHAR_TIMEOUT 6540
+#define TX_FIFO_MAX 16
 
 /****************************************************************************
  * Private Types
@@ -195,6 +196,7 @@ struct rtl8721d_up_dev_s {
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
 	uint8_t oflow:1;			/* output flow control (CTS) enabled */
 #endif
+	uint8_t tx_level;
 };
 
 /****************************************************************************
@@ -418,7 +420,6 @@ static int rtl8721d_up_setup(struct uart_dev_s *dev)
 	serial_baud(sdrv[uart_index_get(priv->tx)], priv->baud);
 	serial_format(sdrv[uart_index_get(priv->tx)], priv->bits, priv->parity, priv->stopbit);
 	serial_set_flow_control(sdrv[uart_index_get(priv->tx)], priv->FlowControl, priv->rts, priv->cts);
-
 	return OK;
 }
 
@@ -456,15 +457,163 @@ static void rtl8721d_up_shutdown(struct uart_dev_s *dev)
  *
  ****************************************************************************/
 
+// IMAGE2_RAM_TEXT_SECTION
+void uart_xmitchars(FAR uart_dev_t *dev)
+{
+	uint16_t nbytes = 0;
+
+	/* Send while we still have data in the TX buffer & room in the fifo */
+
+	while (dev->xmit.head != dev->xmit.tail && uart_txready(dev)) {
+		/* Send the next byte */
+
+		uart_send(dev, dev->xmit.buffer[dev->xmit.tail]);
+		nbytes++;
+
+		/* Increment the tail index */
+
+		if (++(dev->xmit.tail) >= dev->xmit.size) {
+			dev->xmit.tail = 0;
+		}
+	}
+
+	/* When all of the characters have been sent from the buffer disable the TX
+	 * interrupt.
+	 *
+	 * Potential bug?  If nbytes == 0 && (dev->xmit.head == dev->xmit.tail) &&
+	 * dev->xmitwaiting == true, then disabling the TX interrupt will leave
+	 * the uart_write() logic waiting to TX to complete with no TX interrupts.
+	 * Can that happen?
+	 */
+
+	if (dev->xmit.head == dev->xmit.tail) {
+		uart_disabletxint(dev);
+	}
+
+	/* If any bytes were removed from the buffer, inform any waiters there there is
+	 * space available.
+	 */
+
+	if (nbytes) {
+		dev->sent(dev);
+	}
+}
+
+// IMAGE2_RAM_TEXT_SECTION
+void uart_recvchars(FAR uart_dev_t *dev)
+{
+	FAR struct uart_buffer_s *rxbuf = &dev->recv;
+#ifdef CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS
+	unsigned int watermark;
+#endif
+	unsigned int status;
+	int nexthead = rxbuf->head + 1;
+	uint16_t nbytes = 0;
+
+	if (nexthead >= rxbuf->size) {
+		nexthead = 0;
+	}
+#ifdef CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS
+	/* Pre-calcuate the watermark level that we will need to test against. */
+
+	watermark = (CONFIG_SERIAL_IFLOWCONTROL_UPPER_WATERMARK * rxbuf->size) / 100;
+#endif
+
+	/* Loop putting characters into the receive buffer until there are no further
+	 * characters to available.
+	 */
+
+	while (uart_rxavailable(dev)) {
+		bool is_full = (nexthead == rxbuf->tail);
+		char ch;
+
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+#ifdef CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS
+		unsigned int nbuffered;
+
+		/* How many bytes are buffered */
+
+		if (rxbuf->head >= rxbuf->tail) {
+			nbuffered = rxbuf->head - rxbuf->tail;
+		} else {
+			nbuffered = rxbuf->size - rxbuf->tail + rxbuf->head;
+		}
+
+		/* Is the level now above the watermark level that we need to report? */
+
+		if (nbuffered >= watermark) {
+			/* Let the lower level driver know that the watermark level has been
+			 * crossed.  It will probably activate RX flow control.
+			 */
+
+			if (uart_rxflowcontrol(dev, nbuffered, true)) {
+				/* Low-level driver activated RX flow control, exit loop now. */
+
+				break;
+			}
+		}
+#else
+		/* Check if RX buffer is full and allow serial low-level driver to pause
+		 * processing. This allows proper utilization of hardware flow control.
+		 */
+
+		if (is_full) {
+			if (uart_rxflowcontrol(dev, rxbuf->size, true)) {
+				/* Low-level driver activated RX flow control, exit loop now. */
+
+				break;
+			}
+		}
+#endif
+#endif
+
+		ch = uart_receive(dev, &status);
+
+		/* If the RX buffer becomes full, then the serial data is discarded.  This is
+		 * necessary because on most serial hardware, you must read the data in order
+		 * to clear the RX interrupt. An option on some hardware might be to simply
+		 * disable RX interrupts until the RX buffer becomes non-FULL.  However, that
+		 * would probably just cause the overrun to occur in hardware (unless it has
+		 * some large internal buffering).
+		 */
+
+		if (!is_full) {
+			/* Add the character to the buffer */
+
+			rxbuf->buffer[rxbuf->head] = ch;
+			nbytes++;
+
+			/* Increment the head index */
+
+			rxbuf->head = nexthead;
+			if (++nexthead >= rxbuf->size) {
+				nexthead = 0;
+			}
+		}
+	}
+
+	/* If any bytes were added to the buffer, inform any waiters there there is new
+	 * incoming data available.
+	 */
+
+	if (nbytes) {
+		dev->received(dev);
+	}
+}
+
 //extern uint32_t uart_irqhandler(void *data);
+// IMAGE2_RAM_TEXT_SECTION
 void rtl8721d_uart_irq(uint32_t id, SerialIrq event)
 {
 	struct uart_dev_s *dev = (struct uart_dev_s *)id;
+	struct rtl8721d_up_dev_s *priv = (struct rtl8721d_up_dev_s *)dev->priv;
 	if (event == RxIrq) {
 		uart_recvchars(dev);
 	}
 	if (event == TxIrq) {
+		priv->tx_level = TX_FIFO_MAX;
 		uart_xmitchars(dev);
+		priv->tx_level = 0;
 	}
 }
 static int rtl8721d_up_attach(struct uart_dev_s *dev)
@@ -647,6 +796,7 @@ static void rtl8721d_up_send(struct uart_dev_s *dev, int ch)
 	DEBUGASSERT(priv);
 	/*write one byte to tx fifo*/
 	serial_putc(sdrv[uart_index_get(priv->tx)], ch);
+	priv->tx_level--;
 }
 
 /****************************************************************************
@@ -680,7 +830,7 @@ static bool rtl8721d_up_txready(struct uart_dev_s *dev)
 	struct rtl8721d_up_dev_s *priv = (struct rtl8721d_up_dev_s *)dev->priv;
 	DEBUGASSERT(priv);
 
-	return (serial_writable(sdrv[uart_index_get(priv->tx)]));
+	return priv->tx_level;
 }
 
 /****************************************************************************
@@ -695,8 +845,7 @@ static bool rtl8721d_up_txempty(struct uart_dev_s *dev)
 {
 	struct rtl8721d_up_dev_s *priv = (struct rtl8721d_up_dev_s *)dev->priv;
 	DEBUGASSERT(priv);
-	while (!serial_writable(sdrv[uart_index_get(priv->tx)])) ;
-	return true;
+	return (serial_tx_empty(sdrv[uart_index_get(priv->tx)]));
 }
 
 /****************************************************************************

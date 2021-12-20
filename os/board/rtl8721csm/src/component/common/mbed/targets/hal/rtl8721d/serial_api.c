@@ -244,6 +244,7 @@ static void uart_txdone_callback(VOID *pAdapter)
 	}
 }
 
+// IMAGE2_RAM_TEXT_SECTION
 static void uart_rxdone_callback(VOID *pAdapter)
 {
 	PMBED_UART_ADAPTER puart_adapter = pAdapter;
@@ -291,6 +292,9 @@ uart_intsend_complete(
 	}
 }
 
+int line_status_counter = 0;
+
+// IMAGE2_RAM_TEXT_SECTION
 static u32
 uart_irqhandler(
         IN VOID *Data
@@ -320,6 +324,9 @@ uart_irqhandler(
 		
 	case RUART_RECEIVE_LINE_STATUS:
 		RegValue = UART_LineStatusGet(puart_adapter->UARTx);
+		if(RegValue & 0x02) {
+			line_status_counter++;
+		}
 	break;
 
 	case RUART_TX_FIFO_EMPTY:
@@ -490,7 +497,6 @@ void serial_init(serial_t *obj, PinName tx, PinName rx)
 
 	UART_StructInit(&puart_adapter->UART_InitStruct);
 	UART_Init(puart_adapter->UARTx, &puart_adapter->UART_InitStruct);
-
 	InterruptRegister((IRQ_FUN)uart_irqhandler, puart_adapter->IrqNum, (u32)puart_adapter, 5);
 	InterruptEn(puart_adapter->IrqNum, 5);
 
@@ -713,7 +719,7 @@ int serial_getc(serial_t *obj)
 	PMBED_UART_ADAPTER puart_adapter=&(uart_adapter[obj->uart_idx]);
 	u8 RxByte = 0;
 
-	while (!serial_readable(obj));
+	// while (!serial_readable(obj));
 	UART_CharGet(puart_adapter->UARTx, &RxByte);
 
 	return (int)RxByte;
@@ -730,7 +736,6 @@ void serial_putc(serial_t *obj, int c)
 {
 	PMBED_UART_ADAPTER puart_adapter=&(uart_adapter[obj->uart_idx]);
 
-	while (!serial_writable(obj));
 	UART_CharPut(puart_adapter->UARTx, (c & 0xFF));
 
 	if (serial_irq_en[obj->uart_idx] & SERIAL_TX_IRQ_EN) {
@@ -769,6 +774,15 @@ int serial_writable(serial_t *obj)
 	PMBED_UART_ADAPTER puart_adapter=&(uart_adapter[obj->uart_idx]);
 
 	if (UART_Writable(puart_adapter->UARTx)) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+int serial_tx_empty(serial_t *obj)
+{
+	PMBED_UART_ADAPTER puart_adapter=&(uart_adapter[obj->uart_idx]);
+	if (puart_adapter->UARTx->LSR & RUART_LINE_STATUS_REG_TEMT) {
 		return 1;
 	} else {
 		return 0;

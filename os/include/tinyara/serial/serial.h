@@ -348,7 +348,7 @@ int uart_register(FAR const char *path, FAR uart_dev_t *dev);
  *
  ************************************************************************************/
 
-void uart_xmitchars(FAR uart_dev_t *dev);
+//void uart_xmitchars(FAR uart_dev_t *dev);
 
 /************************************************************************************
  * Name: uart_receivechars
@@ -361,7 +361,7 @@ void uart_xmitchars(FAR uart_dev_t *dev);
  *
  ************************************************************************************/
 
-void uart_recvchars(FAR uart_dev_t *dev);
+//void uart_recvchars(FAR uart_dev_t *dev);
 
 
 /************************************************************************************

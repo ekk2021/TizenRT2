@@ -387,13 +387,18 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 				if(size == 0)
 					break;
 			}
+
+			// FLASH_Write_Lock();
 			FLASH_TxData12B(addr_begin - offset_to_align, 4, (u8*)&read_word);
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
+			// FLASH_Write_Unlock();
 		}
 
 		addr_begin = (((addr_begin-1) >> 2) + 1) << 2;
+		
+		// FLASH_Write_Lock();
 		for(;size >= 256 ;size -= 256){
 			FLASH_TxData256B_RAM(addr_begin, 256, data);
 #ifdef MICRON_N25Q00AA
@@ -402,6 +407,7 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 			data += 256;
 			addr_begin += 256;
 		}
+
 
 		for(;size >= 12 ;size -= 12){
 			FLASH_TxData12B(addr_begin, 12, data);
@@ -420,6 +426,7 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 			data += 4;
 			addr_begin += 4;
 		}
+		// FLASH_Write_Unlock();
 
 		if(size > 0){
 			read_word = HAL_READ32(SPI_FLASH_BASE, addr_begin);
@@ -427,10 +434,13 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 				read_word = (read_word & (~(0xff << (8*i)))) | ((*data) <<(8*i));
 				data++;
 			}
+
+			// FLASH_Write_Lock();
 			FLASH_TxData12B(addr_begin, 4, (u8*)&read_word); 
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
+			// FLASH_Write_Unlock();
 		}
 		page_cnt--;
 		addr_begin = addr_end;

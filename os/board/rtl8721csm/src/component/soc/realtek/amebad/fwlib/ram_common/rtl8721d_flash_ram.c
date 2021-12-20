@@ -18,6 +18,7 @@
 #include "ameba_soc.h"
 
 static u32 cpu_systick;
+u32 ISER[16] = {0};
 
 /**
   * @brief  This function is used to handle flash write ipc interrupt.
@@ -86,7 +87,21 @@ void FLASH_Write_Lock(void)
 #endif
 	}
 
-	asm volatile ("cpsid i" : : : "memory");
+	for (u8 i = 0; i < 16; i++){
+		ISER[i] = NVIC->ISER[i];
+		if (i == 0) {
+			NVIC->ICER[i] = 0xfffffdf7;  //disable interrupt but uarts
+			NVIC->ICPR[i] = 0xfffffdf7;  //clear pending interrupt but uarts
+		} else if (i == 1) {
+			NVIC->ICER[i] = 0xfffffff3;  //disable interrupt but uarts
+			NVIC->ICPR[i] = 0xfffffff3;  //clear pending interrupt but uarts
+		} else {
+			NVIC->ICER[i] = 0xffffffff;  //disable interrupt
+			NVIC->ICPR[i] = 0xffffffff;  //clear pending interrupt
+		}
+	}
+    //asm volatile ("cpsid i" : : : "memory");
+
 	cpu_systick = SysTick->CTRL;	//disable systick exception
 	SysTick->CTRL = 0;
 }
@@ -103,8 +118,12 @@ void FLASH_Write_Unlock(void)
 	u32 cpu_id = IPC_CPUID();
 	u32 lp_sleep_state;
 	//u32 hp_sleep_state;
-	asm volatile ("cpsie i" : : : "memory");
-	
+//	asm volatile ("cpsie i" : : : "memory");
+
+	for(u8 i = 0; i < 16; i++) {
+		NVIC->ISER[i] = ISER[i]; //restore interrupt
+	}
+
 	SysTick->CTRL = cpu_systick;//restore systick exception
 
 	/*send an event using "sev" instruction to let the other CPU wake up*/

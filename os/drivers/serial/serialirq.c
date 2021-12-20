@@ -96,6 +96,7 @@
  *   write() logic adds data to the head of the xmit buffer.
  *
  ************************************************************************************/
+#if 0
 
 void uart_xmitchars(FAR uart_dev_t *dev)
 {
@@ -137,6 +138,7 @@ void uart_xmitchars(FAR uart_dev_t *dev)
 		dev->sent(dev);
 	}
 }
+
 
 /************************************************************************************
  * Name: uart_receivechars
@@ -249,3 +251,4 @@ void uart_recvchars(FAR uart_dev_t *dev)
 		dev->received(dev);
 	}
 }
+#endif
