@@ -231,6 +231,7 @@ uart_dmarecv_irqhandler(
 	return 0;
 }
 
+IMAGE2_RAM_TEXT_SECTION
 static void uart_txdone_callback(VOID *pAdapter)
 {
 	PMBED_UART_ADAPTER puart_adapter = pAdapter;
@@ -244,7 +245,7 @@ static void uart_txdone_callback(VOID *pAdapter)
 	}
 }
 
-// IMAGE2_RAM_TEXT_SECTION
+IMAGE2_RAM_TEXT_SECTION
 static void uart_rxdone_callback(VOID *pAdapter)
 {
 	PMBED_UART_ADAPTER puart_adapter = pAdapter;
@@ -294,7 +295,7 @@ uart_intsend_complete(
 
 int line_status_counter = 0;
 
-// IMAGE2_RAM_TEXT_SECTION
+IMAGE2_RAM_TEXT_SECTION
 static u32
 uart_irqhandler(
         IN VOID *Data
