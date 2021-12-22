@@ -457,7 +457,7 @@ static void rtl8721d_up_shutdown(struct uart_dev_s *dev)
  *
  ****************************************************************************/
 
-// IMAGE2_RAM_TEXT_SECTION
+IMAGE2_RAM_TEXT_SECTION
 void uart_xmitchars(FAR uart_dev_t *dev)
 {
 	uint16_t nbytes = 0;
@@ -499,7 +499,7 @@ void uart_xmitchars(FAR uart_dev_t *dev)
 	}
 }
 
-// IMAGE2_RAM_TEXT_SECTION
+IMAGE2_RAM_TEXT_SECTION
 void uart_recvchars(FAR uart_dev_t *dev)
 {
 	FAR struct uart_buffer_s *rxbuf = &dev->recv;
@@ -602,7 +602,7 @@ void uart_recvchars(FAR uart_dev_t *dev)
 }
 
 //extern uint32_t uart_irqhandler(void *data);
-// IMAGE2_RAM_TEXT_SECTION
+IMAGE2_RAM_TEXT_SECTION
 void rtl8721d_uart_irq(uint32_t id, SerialIrq event)
 {
 	struct uart_dev_s *dev = (struct uart_dev_s *)id;

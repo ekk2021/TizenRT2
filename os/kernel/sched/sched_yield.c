@@ -126,10 +126,10 @@ int _process_flash_write_thread()
         address = FLASH_ADDRESS;
 
         while(address < FLASH_ADDRESS + FLASH_SIZE) {
-            ret = MTD_ERASE(mtd_dev, address / FLASH_BLOCK_SIZE, 1);
-            if(ret < 0) {
-                printf("erase fail ret : %d\n", ret);
-            }
+            // ret = MTD_ERASE(mtd_dev, address / FLASH_BLOCK_SIZE, 1);
+            // if(ret < 0) {
+            //     printf("erase fail ret : %d\n", ret);
+            // }
         
             ret = MTD_WRITE(mtd_dev, address, FLASH_BLOCK_SIZE, buffer);
             if(ret < 0) {

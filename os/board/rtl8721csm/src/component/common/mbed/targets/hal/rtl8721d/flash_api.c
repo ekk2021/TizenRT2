@@ -374,7 +374,7 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 	u32 read_word;
 	u32 i;
 
-	FLASH_Write_Lock();
+	// FLASH_Write_Lock();
 	while(page_cnt){
 		offset_to_align = addr_begin & 0x3;
 
@@ -388,45 +388,50 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 					break;
 			}
 
-			// FLASH_Write_Lock();
+			FLASH_Write_Lock();
 			FLASH_TxData12B(addr_begin - offset_to_align, 4, (u8*)&read_word);
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
-			// FLASH_Write_Unlock();
+			FLASH_Write_Unlock();
 		}
 
 		addr_begin = (((addr_begin-1) >> 2) + 1) << 2;
 		
-		// FLASH_Write_Lock();
 		for(;size >= 256 ;size -= 256){
+			FLASH_Write_Lock();		
 			FLASH_TxData256B_RAM(addr_begin, 256, data);
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
+			FLASH_Write_Unlock();
 			data += 256;
 			addr_begin += 256;
 		}
 
 
 		for(;size >= 12 ;size -= 12){
+			FLASH_Write_Lock();		
 			FLASH_TxData12B(addr_begin, 12, data);
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
+			FLASH_Write_Unlock();
+
 			data += 12;
 			addr_begin += 12;
 		}
 
 		for(;size >= 4; size -=4){
+			FLASH_Write_Lock();		
 			FLASH_TxData12B(addr_begin, 4, data);
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
+			FLASH_Write_Unlock();
 			data += 4;
 			addr_begin += 4;
 		}
-		// FLASH_Write_Unlock();
 
 		if(size > 0){
 			read_word = HAL_READ32(SPI_FLASH_BASE, addr_begin);
@@ -435,12 +440,12 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 				data++;
 			}
 
-			// FLASH_Write_Lock();
+			FLASH_Write_Lock();
 			FLASH_TxData12B(addr_begin, 4, (u8*)&read_word); 
 #ifdef MICRON_N25Q00AA
 			FLASH_ReadFlagStatusReg();
 #endif
-			// FLASH_Write_Unlock();
+			FLASH_Write_Unlock();
 		}
 		page_cnt--;
 		addr_begin = addr_end;
@@ -449,7 +454,7 @@ int  flash_stream_write(flash_t *obj, u32 address, u32 len, u8 * data)
 	}
 
 	DCache_Invalidate(SPI_FLASH_BASE + address, len);
-	FLASH_Write_Unlock();
+	// FLASH_Write_Unlock();
 
 	return size;
 }
