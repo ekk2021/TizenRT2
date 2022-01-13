@@ -31,7 +31,8 @@
 #include "wm_test_utils.h"
 
 /* Macro*/
-#define WM_TEST_TRIAL	   CONFIG_WIFIMANAGER_TEST_TRIAL
+// #define WM_TEST_TRIAL	   CONFIG_WIFIMANAGER_TEST_TRIAL
+#define WM_TEST_TRIAL	   500
 #define WM_NSOFTAP_SSID "no_sta_0101" // for auto test
 #define TAG "[WTS2]"
 

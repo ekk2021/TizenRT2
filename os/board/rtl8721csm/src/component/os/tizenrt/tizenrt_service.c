@@ -29,6 +29,8 @@
 #define USE_PTHREAD_MUTEX 0		//todo
 #endif
 
+#define NEW_TIMER_WRAPPER 
+
 /******************************************************************************
  *                    Misc Function
  ******************************************************************************/
@@ -834,6 +836,52 @@ static void _tizenrt_thread_exit(void)
 #endif
 }
 
+#ifdef NEW_TIMER_WRAPPER
+struct _tizenrt_timer_entry {
+	struct list_head list;
+	struct timer_list_priv *timer;
+};
+
+_list _tizenrt_timer_table;
+bool _tizenrt_timer_table_init = 0;
+
+u32 _tizenrt_end_of_queue_search(_list *head, _list *plist)
+{
+	if (head == plist)
+		return _TRUE;
+	else
+		return _FALSE;
+}
+
+void _tizenrt_timer_wrapper(void *timer)
+{
+	_list *plist;
+	struct _tizenrt_timer_entry *timer_entry = NULL;
+
+	save_and_cli();
+	plist = get_next(&_tizenrt_timer_table);
+	while ((_tizenrt_end_of_queue_search(&_tizenrt_timer_table, plist)) == _FALSE) {
+		timer_entry = LIST_CONTAINOR(plist, struct _tizenrt_timer_entry, list);
+		if (timer_entry->timer == timer) {
+			break;
+		}
+		plist = get_next(plist);
+	}
+	restore_flags();
+
+	if (plist == &_tizenrt_timer_table) {
+		printf("%s : find timer_entry fail \n", __FUNCTION__);
+		return;
+	}
+	timer_entry->timer->live = 0;
+
+	printf("%s : [Wrapper called] Timer handle : %d\n", __FUNCTION__, timer_entry->timer->work_hdl);
+	if (timer_entry->timer->function) {
+		timer_entry->timer->function(timer);
+	}
+}
+#endif
+
 _timerHandle _tizenrt_timerCreate(const signed char *pcTimerName, osdepTickType xTimerPeriodInTicks, u32 uxAutoReload, void *pvTimerID, TIMER_FUN pxCallbackFunction)
 {
 	struct timer_list_priv *timer = (struct timer_list_priv *)_tizenrt_zmalloc(sizeof(struct timer_list_priv));
@@ -851,16 +899,65 @@ _timerHandle _tizenrt_timerCreate(const signed char *pcTimerName, osdepTickType 
 	timer->timevalue = xTimerPeriodInTicks;
 	timer->data = pvTimerID;
 	timer->function = pxCallbackFunction;
+
+#ifdef NEW_TIMER_WRAPPER
+	if (!_tizenrt_timer_table_init) {
+		INIT_LIST_HEAD(&_tizenrt_timer_table);
+		_tizenrt_timer_table_init = 1;
+	}
+
+	struct _tizenrt_timer_entry *timer_entry;
+	timer_entry = _tizenrt_zmalloc(sizeof(struct _tizenrt_timer_entry));
+	if (timer_entry == NULL) {
+		printf("%s : alloc _tizenrt_timer_entry fail \n", __FUNCTION__);
+		kmm_free(timer->work_hdl);
+		kmm_free(timer);
+		return NULL;
+	}
+	memset(timer_entry, 0, sizeof(struct _tizenrt_timer_entry));
+	timer_entry->timer = timer;
+
+	save_and_cli();
+	list_add(&(timer_entry->list), &_tizenrt_timer_table);
+	restore_flags();
+#endif
+
+	printf("%s : [Create] Timer handle : %d\n", __FUNCTION__, timer->work_hdl);
 	return (_timerHandle) timer;
 }
 
 u32 _tizenrt_timerDelete(_timerHandle xTimer, osdepTickType xBlockTime)
 {
 	struct timer_list_priv *timer = (struct timer_list_priv *)xTimer;
+
+	printf("%s : [Delete] Timer handle : %d\n", __FUNCTION__, timer->work_hdl);
 	int ret = work_cancel(LPWORK, timer->work_hdl);
 	if (ret != OK) {
 		goto cleanup;
 	}
+
+#ifdef NEW_TIMER_WRAPPER
+	_list *plist;
+	struct _tizenrt_timer_entry *timer_entry;
+	save_and_cli();
+
+	plist = get_next(&_tizenrt_timer_table);
+	while ((_tizenrt_end_of_queue_search(&_tizenrt_timer_table, plist)) == _FALSE) {
+		timer_entry = LIST_CONTAINOR(plist, struct _tizenrt_timer_entry, list);
+		if (timer_entry->timer == timer) {
+			list_del_init(plist);
+			kmm_free(timer_entry);
+			break;
+		}
+		plist = get_next(plist);
+	}
+	restore_flags();
+	if (plist == &_tizenrt_timer_table) {
+		printf("%s : find timer_entry fail \n", __FUNCTION__);
+		return _FAIL;
+	}
+#endif
+
 	timer->data = NULL;
 	timer->timer_hdl = NULL;
 	timer->timevalue = 0;
@@ -877,9 +974,11 @@ cleanup:
 		timer->live = 0;
 		kmm_free(timer->work_hdl);
 		kmm_free(timer);
-		DBG_ERR("_tizenrt_del_timer failed! ret = %d", ret);
+		DBG_ERR("_tizenrt_del_timer failed! ret = %d\n", ret);
 		return _FAIL;
 	}
+
+	printf("%s : work_queue error in Timer delete \n", __FUNCTION__);
 	timer->data = NULL;
 	timer->timer_hdl = NULL;
 	timer->timevalue = 0;
@@ -894,6 +993,7 @@ u32 _tizenrt_timerIsTimerActive(_timerHandle xTimer)
 {
 	struct timer_list_priv *timer = (struct timer_list_priv *)xTimer;
 
+	printf("%s : [Is_Active] Timer handle : %d, Ative Value : %d\n", __FUNCTION__, timer->work_hdl, timer->live);
 	return timer->live;
 }
 
@@ -901,6 +1001,7 @@ u32 _tizenrt_timerStop(_timerHandle xTimer, osdepTickType xBlockTime)
 {
 	struct timer_list_priv *timer = (struct timer_list_priv *)xTimer;
 
+	printf("%s : [Stop] Timer handle : %d\n", __FUNCTION__, timer->work_hdl);
 	int ret = work_cancel(LPWORK, timer->work_hdl);
 	if (ret != OK) {
 		goto cleanup;
@@ -918,7 +1019,7 @@ cleanup:
 	}
 	timer->timevalue = 0;
 	timer->live = 0;
-	DBG_ERR("_tizenrt_stop_timer is Done! timer->work_hdl = %x", timer->work_hdl);
+	DBG_ERR("_tizenrt_stop_timer is Done! timer->work_hdl = %d\n", timer->work_hdl);
 	return _SUCCESS;
 }
 
@@ -926,15 +1027,31 @@ u32 _tizenrt_timerChangePeriod(_timerHandle xTimer, osdepTickType xNewPeriod, os
 {
 	int ret;
 	struct timer_list_priv *timer = (struct timer_list_priv *)xTimer;
+	printf("%s : [Change_period] Timer handle : %d, TickValue : %d\n", __FUNCTION__, timer->work_hdl, xNewPeriod);
+
+#ifdef NEW_TIMER_WRAPPER
+	ret = work_queue(LPWORK, timer->work_hdl, _tizenrt_timer_wrapper, (void *)(timer), xNewPeriod);
+#else
 	ret = work_queue(LPWORK, timer->work_hdl, timer->function, (void *)(timer), xNewPeriod);
+#endif
+	
 	if (ret == -EALREADY) {
 		if (work_cancel(LPWORK, timer->work_hdl) != OK) {
 			goto cleanup;
 		}
+#ifdef NEW_TIMER_WRAPPER		
+		if (work_queue(LPWORK, timer->work_hdl, _tizenrt_timer_wrapper, (void *)(timer), xNewPeriod)) {
+#else
 		if (work_queue(LPWORK, timer->work_hdl, timer->function, (void *)(timer), xNewPeriod)) {
+#endif		
 			goto cleanup;
 		}
 	}
+	
+#ifdef NEW_TIMER_WRAPPER	
+	timer->live = 1;
+#endif
+	
 	return _SUCCESS;
 
 cleanup:
