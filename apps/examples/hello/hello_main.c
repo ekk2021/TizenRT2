@@ -62,6 +62,9 @@
 #include <wifi_manager/wifi_manager.h>
 #include <stress_tool/st_perf.h>
 
+// for virtual driver
+//#include "wm_test_mock.h"
+
 #define TAG "[HELLO_SERVER]"
 
 #define CT_LOG(tag, fmt, args...) \
@@ -183,8 +186,10 @@ static int hello_run_procedure(void)
 	}
 
 	/*  wait join event */
+	//CONTROL_VDRIVER(VWIFI_CMD_GEN_EVT, LWNL_EVT_SOFTAP_STA_JOINED, 0, 3000);
+	//CONTROL_VDRIVER(VWIFI_CMD_GEN_EVT, VWIFI_PKT_DHCPS_EVT, 0, 3000);
 	CT_LOG(TAG, "wait join event");
-	HELLO_TEST_WAIT;
+	//HELLO_TEST_WAIT;
 
 	/*  scan in softAP mode */
 	CT_LOG(TAG, "scan in softAP mode");
@@ -199,6 +204,7 @@ static int hello_run_procedure(void)
 	CT_LOG(TAG, "wait scan done event");
 	HELLO_TEST_WAIT;
 	
+	sleep(5);
 	/*  set STA */
 	CT_LOG(TAG, "start STA mode");
 	wres = wifi_manager_set_mode(STA_MODE, NULL);
@@ -214,9 +220,44 @@ static int hello_run_procedure(void)
 		CT_LOGE(TAG, "fail to scan %d", wres);
 		return -1;
 	}
-	
+
+
 	/*  wait scan event */
 	CT_LOG(TAG, "wait scan done event in STA mode");
+	HELLO_TEST_WAIT; 
+
+
+	CT_LOG(TAG, "connect to AP");
+
+	wifi_manager_ap_config_s apconfig;
+	strncpy(apconfig.ssid, "RTK_AP_TEST", strlen("RTK_AP_TEST") + 1);
+	apconfig.ssid_length = strlen("RTK_AP_TEST");
+    strncpy(apconfig.passphrase, "1234567890", strlen("1234567890") + 1);	
+    apconfig.passphrase_length = strlen("1234567890");
+    apconfig.ap_auth_type = WIFI_MANAGER_AUTH_WPA2_PSK;
+    apconfig.ap_crypto_type = WIFI_MANAGER_CRYPTO_AES;
+
+	wres = wifi_manager_connect_ap(&apconfig);
+	if (wres != WIFI_MANAGER_SUCCESS) {
+		CT_LOG(TAG, "connect AP fail %d\n", wres);
+		return -1;
+	}
+	
+	/*  wait connect event */
+	CT_LOG(TAG, "wait AP connection event in STA mode");
+	HELLO_TEST_WAIT; 
+
+	sleep(5);
+
+	/*  disconnect to AP */
+	wres = wifi_manager_disconnect_ap();
+	if (wres != WIFI_MANAGER_SUCCESS) {
+		CT_LOG(TAG, "disconnect AP fail %d\n", wres);
+		return -1;
+	}
+
+	/*  wait disconnect event */
+	CT_LOG(TAG, "wait AP disconnection event in STA mode");
 	HELLO_TEST_WAIT; 
 	
 	/* Deinitialise Wifi */
@@ -231,14 +272,20 @@ static int hello_run_procedure(void)
 	return 0;
 }
 
-
+#define TEST_CASE_COUNT	500
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
 int hello_main(int argc, char *argv[])
 #endif
 {
-	hello_run_procedure();
+	int loop;
+
+	for(loop = 0 ; loop < TEST_CASE_COUNT ; loop++) {
+		printf("\n\n TEST LOOP = %d", loop+1);
+		hello_run_procedure();
+	}
+
 	printf("Hello, World!!\n");
 	return 0;
 }
