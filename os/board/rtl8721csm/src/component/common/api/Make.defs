@@ -50,6 +50,7 @@
 ############################################################################
 
 CSRCS += wifi_interactive_mode.c
+CSRCS += i2c_example.c
 
 DEPPATH += --dep-path component/common/api
 VPATH += :component/common/api

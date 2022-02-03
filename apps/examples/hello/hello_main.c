@@ -60,6 +60,7 @@
 /****************************************************************************
  * hello_main
  ****************************************************************************/
+extern void main_i2c_example(void);
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
@@ -68,5 +69,6 @@ int hello_main(int argc, char *argv[])
 #endif
 {
 	printf("Hello, World!!\n");
+    main_i2c_example();
 	return 0;
 }
