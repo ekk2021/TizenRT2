@@ -481,7 +481,11 @@ trwifi_result_e wifi_netmgr_utils_deinit(struct netdev *dev)
 			printf("address of saved_scan_list after rtw_mfree = %x\n", saved_scan_list);
 		}
 		scan_number = 0;
-		rtw_del_timer(&(scan_timer));
+		if(scan_timer.timer_hdl != NULL) {
+			rtw_cancel_timer(&(scan_timer));
+			rtw_del_timer(&(scan_timer));
+		}
+		
 		rtw_mutex_free(&scanlistbusy);
 	} else {
 		ndbg("[RTK] Failed to stop STA mode\n");
