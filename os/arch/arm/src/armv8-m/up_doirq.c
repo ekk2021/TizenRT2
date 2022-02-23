@@ -87,6 +87,10 @@ extern uint32_t g_nestlevel; /* Initial top of interrupt stack */
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+extern float irq_before;
+extern float irq_after;
+extern float irq_used;
+
 
 uint32_t *up_doirq(int irq, uint32_t *regs)
 {
@@ -97,6 +101,8 @@ uint32_t *up_doirq(int irq, uint32_t *regs)
 #ifdef CONFIG_SUPPRESS_INTERRUPTS
 	PANIC();
 #else
+
+	irq_before = SYSTIMER_TickGet();
 
 #ifdef CONFIG_ARCH_NESTED_INTERRUPT
 
@@ -180,5 +186,11 @@ uint32_t *up_doirq(int irq, uint32_t *regs)
 #endif
 #endif
 	board_led_off(LED_INIRQ);
+
+	irq_after = SYSTIMER_TickGet();
+    if((irq_after - irq_before) > irq_used) {
+    	irq_used = irq_after - irq_before;
+    } 
+	
 	return regs;
 }

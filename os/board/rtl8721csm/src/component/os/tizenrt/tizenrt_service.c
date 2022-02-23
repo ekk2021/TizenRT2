@@ -32,12 +32,18 @@
 /******************************************************************************
  *                    Misc Function
  ******************************************************************************/
+extern float time_before; 
+extern float time_after;
+extern float time_used;
+
 extern void timer_wrapper(_timerHandle timer_hdl);
 
 static irqstate_t initial_tizen_flags, up_tizen_flag;
 static int flagcnt = 0;
 void save_and_cli()
 {
+	time_before = SYSTIMER_TickGet();
+
        if(flagcnt){
                up_tizen_flag = irqsave();
        }else{
@@ -54,6 +60,11 @@ void restore_flags()
        }else{
                irqrestore(initial_tizen_flags);
        }
+
+       time_after = SYSTIMER_TickGet();
+       if((time_after - time_before) > time_used) {
+       		time_used = time_after - time_before;
+       } 
 }
 
 void cli()

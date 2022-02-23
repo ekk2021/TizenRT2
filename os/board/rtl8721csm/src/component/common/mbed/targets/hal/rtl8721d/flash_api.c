@@ -131,13 +131,25 @@ int flash_get_status(flash_t *obj)
   * @param  address: Specifies the starting address to be erased. LSB 12bits will be masked.
   * @retval none
   */
+
+extern float flash_before;
+extern float flash_after;
+extern float flash_used;
+
 void flash_erase_sector(flash_t *obj, u32 address)
 {
 	/* To avoid gcc warnings */
 	( void ) obj;
 	
 	FLASH_Write_Lock();
+	flash_before = SYSTIMER_TickGet();
 	FLASH_Erase(EraseSector, address);
+	flash_after = SYSTIMER_TickGet();
+
+    if((flash_after - flash_before) > flash_used) {
+    	flash_used = flash_after - flash_before;
+    } 
+
 
 	DCache_Invalidate(SPI_FLASH_BASE + address, 0x1000);
 	FLASH_Write_Unlock();

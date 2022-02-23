@@ -490,8 +490,21 @@ void serial_init(serial_t *obj, PinName tx, PinName rx)
 
 	UART_StructInit(&puart_adapter->UART_InitStruct);
 	UART_Init(puart_adapter->UARTx, &puart_adapter->UART_InitStruct);
-	InterruptRegister((IRQ_FUN)uart_irqhandler, puart_adapter->IrqNum, (u32)puart_adapter, 5);
-	InterruptEn(puart_adapter->IrqNum, 5);
+
+#if 1
+	if(uart_index_get(tx) == 3) {
+		InterruptRegister((IRQ_FUN)uart_irqhandler, puart_adapter->IrqNum, (u32)puart_adapter, 4);
+		InterruptEn(puart_adapter->IrqNum, 4);
+	}
+	else {
+		InterruptRegister((IRQ_FUN)uart_irqhandler, puart_adapter->IrqNum, (u32)puart_adapter, 5);
+		InterruptEn(puart_adapter->IrqNum, 5);
+	}
+#else
+		InterruptRegister((IRQ_FUN)uart_irqhandler, puart_adapter->IrqNum, (u32)puart_adapter, 5);
+		InterruptEn(puart_adapter->IrqNum, 5);
+#endif	
+
 
 #ifdef CONFIG_MBED_ENABLED
 	// For stdio management

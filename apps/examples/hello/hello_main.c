@@ -70,6 +70,8 @@
 #include <wifi_manager/wifi_manager.h>
 #include <stress_tool/st_perf.h>
 
+#include <tinyara/timer.h>
+
 #define __DEBUG__
 // #include "spy_debug.h"
 /****************************************************************************
@@ -91,6 +93,24 @@ static int uart_task();
 static int uart_test_rx( void *param );
 static int uart_test_tx( void *param );
 
+float time_before = 0;
+float time_after = 0;
+float time_used = 0;
+
+float irq_before = 0;
+float irq_after = 0;
+float irq_used = 0;
+
+float flash_before = 0;
+float flash_after = 0;
+float flash_used = 0;
+
+#if 0 
+int frt_fd;
+struct timer_status_s frt_before;
+struct timer_status_s frt_after;
+#endif
+
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
 #else
@@ -99,20 +119,42 @@ int hello_main(int argc, char *argv[])
 {
     printf("Hello, World!!\n");
 
-    // temporary return
-    return 0;
-
     int ret;
+
+#if 0
+    /* Test SYSTIMER_TickGet() accuracy */
+    time_before = SYSTIMER_TickGet();
+    usleep( 10000 );
+    time_after = SYSTIMER_TickGet();
+    printf("Should be 10ms= %.3f us\n", ((time_after-time_before) * 31)/1000);
+#endif
+
+#if 0
+    frt_fd = open("/dev/timer0", O_RDONLY);
+    ioctl(frt_fd, TCIOC_SETMODE, MODE_FREERUN);
+    ioctl(frt_fd, TCIOC_START, 0);
+    ioctl(frt_fd, TCIOC_GETSTATUS, (unsigned long)(uintptr_t)&frt_before);
+    usleep( 10000 );
+    ioctl(frt_fd, TCIOC_GETSTATUS, (unsigned long)(uintptr_t)&frt_after);
+    printf("frt_timer = %.2lf sec\n", (frt_after.timeleft - frt_before.timeleft)/1000000);
+
+    ioctl(frt_fd, TCIOC_STOP, 0);
+    close(frt_fd);
+
+    return 0;
+#endif
 
     ret = task_create("uart_task", 100, UART_TEST_STACK_SIZE, uart_task, NULL); 
     if(ret < 0) {
         printf("uart_task creation failed\n");
     }
 
+#if 0
     ret = task_create("flash_task", 100, TASK_STACKSIZE, flash_task, NULL);
     if(ret < 0) {
         printf("flash_task creation failed\n");    
     }
+#endif
 
     ret = task_create("wifi_test_task", 100, TASK_STACKSIZE, wifi_test_task, NULL);
     if(ret < 0) {
@@ -219,6 +261,7 @@ static int wifi_test_task(void)
         HELLO_TEST_WAIT; 
 
         ///////////////////////////////////////////////////////////////
+        // TEST_0001 : if you run the iperf, it should be returned 
         break;    
         /////////////////////////////////////////////////////////////
 
@@ -236,8 +279,8 @@ static int wifi_test_task(void)
 
     sem_destroy(&g_wm_sem);
     
-    // TEST_0001 : if you run the iperf, it should be returned 
-    // return 0;
+    
+    return 0;
 }
 
 #define FLASH_ADDRESS       0x402000
@@ -265,14 +308,21 @@ static int flash_task()
     while(true) {
         address = FLASH_ADDRESS;
 
-        printf("[%s] FLASH ERASE \n", __func__);
-        ret = MTD_ERASE(mtd_dev, address / FLASH_BLOCK_SIZE, 1);
-        if(ret < 0) {
-            printf("erase fail ret : %d\n", ret);
-        }
+        // printf("[%s] FLASH ERASE \n", __func__);
+        // ret = MTD_ERASE(mtd_dev, address / FLASH_BLOCK_SIZE, 1);
+        // if(ret < 0) {
+        //     printf("erase fail ret : %d\n", ret);
+        // }
  
-        printf("[%s] FLASH WRITE \n", __func__);
+        printf("[%s] Start Flash operation \n", __func__);        
         while(address < FLASH_ADDRESS + FLASH_SIZE) {            
+            // printf("[%s] FLASH ERASE \n", __func__);
+            ret = MTD_ERASE(mtd_dev, address / FLASH_BLOCK_SIZE, 1);
+            if(ret < 0) {
+                printf("erase fail ret : %d\n", ret);
+            }
+
+            // printf("[%s] FLASH WRITE \n", __func__);
             ret = MTD_WRITE(mtd_dev, address, FLASH_BLOCK_SIZE, buffer);
             if(ret < 0) {
                 printf("flash writr fail ret[0x%x] : %d\n", address, ret);                
@@ -281,6 +331,7 @@ static int flash_task()
 
             address += FLASH_BLOCK_SIZE;
         }
+
         printf("flash block write (1M) finished \n");
         sleep(3);
     }
@@ -350,6 +401,16 @@ static int uart_task()
 
     if ((r = pthread_create(&tid_tx, &attr, (pthread_startroutine_t)uart_test_tx, (void *)&fd)) != 0) {
         printf("%s: pthread_create(uart_test_tx) failed, status=%d\n", __func__, r);
+    }
+
+
+    while(1) {
+        usleep(1000000);
+        printf("\n=======================================================================\n");
+        printf("max irq_save_delay = %.3f us\n", time_used * 31);
+        printf("max doirq_delay = %.3f us\n", irq_used * 31);
+        printf("max flash_delay = %.3f us\n", flash_used * 31);
+        printf("=======================================================================\n");
     }
 
     /* Wait for the threads to stop */
