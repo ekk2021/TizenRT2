@@ -56,10 +56,26 @@
 
 #include <tinyara/config.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 /****************************************************************************
  * hello_main
  ****************************************************************************/
+
+void *test_thread(void *arg)
+{
+    int count = 0;
+
+    while(1) {
+        if(count % 1000000 == 0) {
+            //printf("release test task \n");
+            count = 0;
+            usleep(1000);
+        }
+
+        count++;
+    }
+}
 
 #ifdef CONFIG_BUILD_KERNEL
 int main(int argc, FAR char *argv[])
@@ -68,5 +84,32 @@ int hello_main(int argc, char *argv[])
 #endif
 {
 	printf("Hello, World!!\n");
+
+    int status;
+    pthread_t thread;
+    pthread_attr_t attr;
+    struct sched_param sparam;
+
+    int priority = 100;
+
+
+    if(argc != 2) {
+        printf("argc = %d\n", argc);
+        return 0;
+    }
+
+    if(argc == 2) {
+        priority = atoi(argv[1]);    
+    }
+
+    printf("thread test: Starting test\n");
+    status = pthread_attr_init(&attr);
+    status = pthread_attr_setstacksize(&attr, 1024);
+
+    sparam.sched_priority = priority;
+    status = pthread_attr_setschedparam(&attr, &sparam);
+    status = pthread_create(&thread, &attr, test_thread, NULL);
+    pthread_detach(thread);
+
 	return 0;
 }

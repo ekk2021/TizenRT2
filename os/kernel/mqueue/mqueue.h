@@ -90,7 +90,8 @@
  * interrupt handlers
  */
 
-#define NUM_INTERRUPT_MSGS   8
+// #define NUM_INTERRUPT_MSGS   32
+#define NUM_INTERRUPT_MSGS   4
 
 /****************************************************************************
  * Public Type Definitions

@@ -114,6 +114,14 @@ bool osif_task_create(void **pp_handle, const char *p_name, void (*p_routine)(vo
 	if (priority > SCHED_PRIORITY_MAX)
 		priority = SCHED_PRIORITY_DEFAULT;
 
+#if 1
+	if(strncmp(p_name, "UpperStackTask", sizeof("UpperStackTask")) == 0)
+	{
+		dbg("created UpperStackTask\n");
+		priority = 105;
+	}
+#endif
+
 	pid = kernel_thread(p_name, priority, stack_size, osif_wrapper_thread, (char *const *) task_info);
 	if (pid == ERROR) {
 		dbg("%s create fail \n", p_name);
@@ -298,7 +306,8 @@ uint32_t osif_lock(void)
 	}
 	else
 	{
-		dbg("warn: unexpected isr mode \n");
+		dbg("warn: unexpected isr mode - pid = %d\n", getpid());
+		//PANIC();
 	}
 	return flags;
 }
@@ -314,7 +323,7 @@ void osif_unlock(uint32_t flags)
 	}
 	else
 	{
-		dbg("warn: unexpected isr mode \n");
+		dbg("warn: unexpected isr mode - pid = %d\n", getpid());
 	}
 }
 
@@ -551,13 +560,13 @@ bool osif_msg_send(void *p_handle, void *p_msg, uint32_t wait_ms)
 		ts.tv_nsec += (wait_ms % 1000) * 1000 * 1000;
 		if (mq_timedsend((mqd_t) p_handle, p_msg, ((mqd_t) p_handle)->msgq->maxmsgsize, prio, &ts) != OK) {
 			ret = get_errno();
-			dbg("mq time send fail: %d \n", ret);
+			printf("mq time send fail: %d, pid = %d\n", ret, getpid());
 			return _FAIL;
 		}
 	} else {
 		if (mq_send((mqd_t) p_handle, p_msg, ((mqd_t) p_handle)->msgq->maxmsgsize, prio) != OK) {
 			ret = get_errno();
-			dbg("mq send fail: %d \n", ret);
+			printf("mq send fail: %d, pid = %d \n", ret, getpid());
 			return _FAIL;
 		}
 	}
@@ -684,6 +693,10 @@ void osif_timer_wrapper(void *timer)
 
 	lock = osif_lock();
 
+
+	if((getpid() == 25) || (getpid() == 24))
+		dbg("timer expire timer id = %d", timer_entry->timer);
+
 	plist = get_next(&osif_timer_table);
 	while ((rtw_end_of_queue_search(&osif_timer_table, plist)) == _FALSE) {
 		timer_entry = LIST_CONTAINOR(plist, struct osif_timer_entry, list);
@@ -799,6 +812,10 @@ bool osif_timer_create(void **pp_handle, const char *p_timer_name, uint32_t time
 	timer_entry->timer = timer;
 
 	lock = osif_lock();
+
+	if((getpid() == 25) || (getpid() == 24))
+		dbg("tiemer create timer id = %d", timer_entry->timer);
+
 	rtw_list_insert_head(&(timer_entry->list), &osif_timer_table);
 	osif_unlock(lock);
 
@@ -910,6 +927,10 @@ bool osif_timer_delete(void **pp_handle)
 	}
 
 	lock = osif_lock();
+
+
+	if((getpid() == 25) || (getpid() == 24))
+		dbg("tiemer delete timer id = %d", timer_entry->timer);
 
 	plist = get_next(&osif_timer_table);
 	while ((rtw_end_of_queue_search(&osif_timer_table, plist)) == _FALSE) {

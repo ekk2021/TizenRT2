@@ -260,7 +260,8 @@ int ble_tizenrt_scatternet_handle_upstream_msg(uint16_t subtype, void *pdata)
         {
             uint8_t scan_filter_policy = *((uint8_t *)pdata);
             uint8_t scan_filter_duplicate = GAP_SCAN_FILTER_DUPLICATE_DISABLE;
-
+            // uint8_t scan_filter_duplicate = GAP_SCAN_FILTER_DUPLICATE_ENABLE;
+            printf("scan_filter_duplicate = %d \n", scan_filter_duplicate);
             if(pdata)
             {
                 le_scan_set_param(GAP_PARAM_SCAN_FILTER_POLICY, sizeof(scan_filter_policy),
