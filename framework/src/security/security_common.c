@@ -42,12 +42,14 @@ security_error security_init(security_handle *hnd)
 	SECAPI_CALL3(sl_init(&(ctx->sl_hnd)), SECURITY_ERROR, free(ctx));
 
 	ctx->data1 = (char *)malloc(SECURITY_MAX_BUF);
+	// ctx->data1 = (char *)malloc(8000);
 	if (!ctx->data1) {
 		sl_deinit(ctx->sl_hnd);
 		free(ctx);
 		SECAPI_RETURN(SECURITY_ALLOC_ERROR);
 	}
 	ctx->dlen1 = SECURITY_MAX_BUF;
+	//ctx->dlen1 = 8000;
 
 	ctx->data2 = (char *)malloc(SECURITY_MAX_BUF);
 	if (!ctx->data2) {
