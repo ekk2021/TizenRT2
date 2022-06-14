@@ -128,6 +128,26 @@ static void _debug_hard_fault(void)
 
 static void _debug_se_task_func(void)
 {
+	const char* data_1 = "{\r\n\t\"-------\":\t\"----------\",\r\n\t\"----------\":\t0,\r\n\t\"------------\":\t\"----------------------------------\",\r\n\t\"------------------------\":\t0,\r\n\t\"-------------\":\t\"\"\r\n}";
+	const char* data_2 = "{\r\n\t\"---------\":\t\"----------------------------------------------------------------------\"\r\n}";
+
+	printf("\n");
+	printf("data_1 : \n%s\n", data_1);
+	printf("data_1 size : %d\n", strlen(data_1));
+	printf("data_2 : \n%s\n", data_2);
+	printf("data_2 size : %d\n", strlen(data_2));
+	printf("\n");
+
+	if(_hello_se_write(DEBUG_SE_INFO_1, (uint8_t*)data_1, strlen(data_1) + 1)!=0)
+	{
+		printf("%d:: %s\n", __LINE__, "Faild to set info");
+	}
+
+	if(_hello_se_write(DEBUG_SE_INFO_2, (uint8_t*)data_2, strlen(data_2) + 1)!=0)
+	{
+		printf("%d:: %s\n", __LINE__, "Faild to set info");
+	}
+
 	while (1)
 	{
 		if (_deblug_load_info() != 0)
@@ -317,6 +337,32 @@ static int _hello_se_read(int slot_number, unsigned char *buffer, unsigned int b
 
 	(void)security_deinit(hnd);
 
+	return 0;
+}
+
+int _hello_se_write(int slot_number, unsigned char *data, unsigned int write_size)
+{
+	int ret = 0;
+
+	if (slot_number >= 15 || data == NULL || write_size == 0 || write_size > SE_DATA_SLOT_SIZE)
+		return -1;
+
+	security_handle hnd;
+	ret = security_init(&hnd);
+	if (ret != SECURITY_OK) {
+		return -1;
+	}
+
+	security_data ss_data = {data, write_size};
+	char ss_path[7] = { 0, };
+	snprintf(ss_path, 7, "ss/%d", slot_number);
+
+	ret = ss_write_secure_storage(hnd, ss_path, 0, &ss_data);
+	(void)security_deinit(hnd);
+
+	if (ret != SECURITY_OK) {
+		return -1;
+	}
 	return 0;
 }
 
