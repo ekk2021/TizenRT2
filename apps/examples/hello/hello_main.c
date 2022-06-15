@@ -138,6 +138,7 @@ static void _debug_se_task_func(void)
 	printf("data_2 size : %d\n", strlen(data_2));
 	printf("\n");
 
+#if 0 // move into while loop
 	if(_hello_se_write(DEBUG_SE_INFO_1, (uint8_t*)data_1, strlen(data_1) + 1)!=0)
 	{
 		printf("%d:: %s\n", __LINE__, "Faild to set info");
@@ -147,9 +148,20 @@ static void _debug_se_task_func(void)
 	{
 		printf("%d:: %s\n", __LINE__, "Faild to set info");
 	}
+#endif
 
 	while (1)
 	{
+		if(_hello_se_write(DEBUG_SE_INFO_1, (uint8_t*)data_1, strlen(data_1) + 1)!=0)
+		{
+			printf("%d:: %s\n", __LINE__, "Faild to set info");
+		}
+
+		if(_hello_se_write(DEBUG_SE_INFO_2, (uint8_t*)data_2, strlen(data_2) + 1)!=0)
+		{
+			printf("%d:: %s\n", __LINE__, "Faild to set info");
+		}
+
 		if (_deblug_load_info() != 0)
 		{
 			printf("%d:: %s\n", __LINE__, "Failed _deblug_load_info()");
